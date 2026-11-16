@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}รายการ Defect{% endblock %}
+{% block heading %}รายการ Defect{% endblock %}
+{% block content %}
+{% set a = request.args %}
+<div class="glass p-4 lg:p-5 reveal">
+  <div class="flex flex-wrap items-center gap-3 mb-4">
+    <div>
+      <h1 class="text-xl font-semibold">รายการ Defect</h1>
+      <p class="text-sm muted">พบ {{ pg.total }} รายการ</p>
+    </div>
+    {% if g.user.role in ('inspector', 'admin') %}
+      <a href="{{ url_for('defects.new') }}" class="btn btn-primary btn-sm ml-auto"><i data-lucide="plus"></i>บันทึก Defect</a>
+    {% endif %}
+  </div>
+  <form method="get" class="grid grid-cols-2 md:grid-cols-[1.6fr_1fr_1fr_1fr_auto] gap-2 mb-4">
+    <div class="relative col-span-2 md:col-span-1">
+      <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 dim"></i>
+      <input class="field !pl-9 !py-2" name="q" value="{{ a.get('q', '') }}" placeholder="ค้นหา (เลขที่, พื้นที่, รายละเอียด...)">
+    </div>
+    <select name="status" class="field !py-2" data-autosubmit>
+      {% set st = a.get('status', '') %}
+      <option value="">สถานะ: ทั้งหมด</option>
+      <option value="progress" {{ 'selected' if st == 'progress' }}>กำลังดำเนินการ</option>
+      <option value="ncr" {{ 'selected' if st == 'ncr' }}>เกินกำหนด (NCR)</option>
+      {% for k, v in STATUS.items() %}<option value="{{ k }}" {{ 'selected' if st == k }}>{{ v }}</option>{% endfor %}
+    </select>
+    <select name="area" class="field !py-2" data-autosubmit>
+      <option value="">พื้นที่: ทั้งหมด</option>
+      {% for ar in areas %}<option value="{{ ar.id }}" {{ 'selected' if a.get('area') == ar.id|string }}>{{ ar.name }}</option>{% endfor %}
+    </select>
+    <select name="severity" class="field !py-2" data-autosubmit>
+      <option value="">ความรุนแรง: ทั้งหมด</option>
+      {% for k, v in SEVERITY.items() %}<option value="{{ k }}" {{ 'selected' if a.get('severity') == k }}>{{ v }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-ghost btn-sm col-span-2 md:col-span-1"><i data-lucide="filter"></i>กรอง</button>
+  </form>
+
+  {{ m.defect_table(pg.items, g.user.role != 'user') }}
+
+  {% if pg.pages > 1 %}
+  {% set args = a.to_dict() %}
+  <div class="flex flex-wrap items-center justify-between gap-3 mt-5">
+    <div class="text-sm muted">แสดง {{ (pg.page - 1) * pg.per_page + 1 }} – {{ (pg.page - 1) * pg.per_page + pg.items|length }} จาก {{ pg.total }} รายการ</div>
+    <div class="pager flex gap-1.5">
+      {% if pg.has_prev %}{% set _ = args.update({'page': pg.prev_num}) %}<a href="{{ url_for('defects.index', **args) }}">‹</a>{% endif %}
+      {% for p in pg.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+        {% if p %}{% set _ = args.update({'page': p}) %}
+          {% if p == pg.page %}<span class="cur">{{ p }}</span>{% else %}<a href="{{ url_for('defects.index', **args) }}">{{ p }}</a>{% endif %}
+        {% else %}<span class="!border-0">…</span>{% endif %}
+      {% endfor %}
+      {% if pg.has_next %}{% set _ = args.update({'page': pg.next_num}) %}<a href="{{ url_for('defects.index', **args) }}">›</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

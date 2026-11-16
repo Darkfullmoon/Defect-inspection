@@ -1,0 +1,89 @@
+{% macro status_badge(d) -%}
+  {% if d.bucket == 'ncr' %}
+    <span class="badge b-ncr">เกินกำหนด (NCR)</span>
+  {% else %}
+    <span class="badge b-{{ d.status }}">{{ STATUS[d.status] }}</span>
+  {% endif %}
+{%- endmacro %}
+
+{% macro sub_status(d) -%}
+  {% if d.bucket == 'ncr' %}<div class="text-[11px] dim mt-1">{{ STATUS[d.status] }}</div>{% endif %}
+{%- endmacro %}
+
+{% macro sev_badge(s) -%}
+  <span class="badge b-sev-{{ s }}">{{ SEVERITY[s] }}</span>
+{%- endmacro %}
+
+{% macro due_text(d) -%}
+  {% if d.status == 'closed' %}
+    <span class="dim">{{ d.due_date|thdate }}</span>
+  {% elif d.days_left < 0 %}
+    <span class="text-rose-300">{{ d.due_date|thdate }}</span><div class="text-[11px] text-rose-300/80">เลย {{ -d.days_left }} วัน</div>
+  {% elif d.days_left == 0 %}
+    <span class="text-amber-300">{{ d.due_date|thdate }}</span><div class="text-[11px] text-amber-300/80">ครบกำหนดวันนี้</div>
+  {% else %}
+    <span>{{ d.due_date|thdate }}</span><div class="text-[11px] dim">เหลือ {{ d.days_left }} วัน</div>
+  {% endif %}
+{%- endmacro %}
+
+{% macro thumb(d) -%}
+  {% if d.cover %}<img class="thumb" loading="lazy" src="{{ url_for('main.media', rel=d.cover.thumb_path) }}" alt="">
+  {% else %}<div class="thumb grid place-items-center"><i data-lucide="image-off" class="w-4 h-4 dim"></i></div>{% endif %}
+{%- endmacro %}
+
+{# การ์ดงานแบบมือถือ #}
+{% macro defect_card(d) -%}
+  <a href="{{ url_for('defects.detail', defect_id=d.id) }}" class="glass-soft flex gap-3 p-3 hover:bg-white/10 transition">
+    {% if d.cover %}<img class="w-20 h-20 rounded-xl object-cover border border-white/10 shrink-0" loading="lazy" src="{{ url_for('main.media', rel=d.cover.thumb_path) }}" alt="">{% endif %}
+    <div class="min-w-0 flex-1">
+      <div class="flex items-center justify-between gap-2">
+        <span class="code-link text-sm">{{ d.code }}</span>
+        {{ status_badge(d) }}
+      </div>
+      <div class="text-sm mt-1 line-clamp-2">{{ d.detail }}</div>
+      <div class="text-xs dim mt-1 flex flex-wrap gap-x-3">
+        <span>{{ d.area.name }} / {{ d.location }}</span>
+        <span>กำหนด {{ d.due_date|thdate }}{% if d.active and d.days_left >= 0 %} · เหลือ {{ d.days_left }} วัน{% elif d.active %} · <span class="text-rose-300">เลย {{ -d.days_left }} วัน</span>{% endif %}</span>
+      </div>
+    </div>
+  </a>
+{%- endmacro %}
+
+{% macro defect_table(items, show_people=True) -%}
+  <div class="overflow-x-auto hidden md:block">
+    <table class="tbl">
+      <thead><tr>
+        <th>เลขที่ Defect</th><th>วันที่บันทึก</th><th>พื้นที่ / ตำแหน่ง</th><th>รายละเอียดปัญหา</th>
+        {% if show_people %}<th>ผู้รับผิดชอบ</th>{% endif %}
+        <th>กำหนดแก้ไข</th><th>สถานะ</th><th class="text-right">การดำเนินการ</th>
+      </tr></thead>
+      <tbody>
+      {% for d in items %}
+        <tr>
+          <td class="whitespace-nowrap"><a class="code-link" href="{{ url_for('defects.detail', defect_id=d.id) }}">{{ d.code }}</a></td>
+          <td class="whitespace-nowrap">{{ d.created_at|thdate }}</td>
+          <td class="whitespace-nowrap">{{ d.area.name }}<div class="text-xs dim">{{ d.location }}</div></td>
+          <td><div class="flex items-center gap-3 min-w-[220px]">{{ thumb(d) }}<span class="line-clamp-2">{{ d.detail }}</span></div></td>
+          {% if show_people %}<td class="whitespace-nowrap">{{ d.assignee.username }}<div class="text-xs dim max-w-[140px] truncate">{{ d.assignee.full_name }}</div></td>{% endif %}
+          <td class="whitespace-nowrap">{{ due_text(d) }}</td>
+          <td>{{ status_badge(d) }}{{ sub_status(d) }}</td>
+          <td class="text-right whitespace-nowrap">
+            <a class="icon-btn" title="ดูรายละเอียด" href="{{ url_for('defects.detail', defect_id=d.id) }}"><i data-lucide="eye"></i></a>
+            {% if d.active and (g.user.role == 'admin' or d.inspector_id == g.user.id) %}
+              <a class="icon-btn" title="แก้ไข" href="{{ url_for('defects.edit', defect_id=d.id) }}"><i data-lucide="pencil"></i></a>
+            {% endif %}
+            <a class="icon-btn !text-rose-300" title="PDF" target="_blank" href="{{ url_for('defects.print_view', defect_id=d.id) }}"><i data-lucide="file-down"></i></a>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8" class="text-center py-10 dim">ไม่พบรายการ</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="md:hidden space-y-3">
+    {% for d in items %}{{ defect_card(d) }}{% else %}<div class="text-center py-8 dim">ไม่พบรายการ</div>{% endfor %}
+  </div>
+{%- endmacro %}
+
+{% macro csrf() -%}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{%- endmacro %}

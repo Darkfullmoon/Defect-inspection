@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ d.code }}{% endblock %}
+{% block back %}<a href="{{ url_for('defects.index') }}" class="icon-btn -ml-1"><i data-lucide="arrow-left"></i></a>{% endblock %}
+{% block heading %}{{ d.code }}{% endblock %}
+{% block content %}
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-5">
+  <div class="xl:col-span-2 space-y-4 lg:space-y-5">
+
+    {# ---------- หัวเรื่อง ---------- #}
+    <div class="glass p-5 lg:p-6 reveal">
+      <div class="flex flex-wrap items-start gap-3">
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="code-link text-lg">{{ d.code }}</span>
+            {{ m.status_badge(d) }}
+            {% if d.bucket == 'ncr' %}<span class="badge b-{{ d.status }}">{{ STATUS[d.status] }}</span>{% endif %}
+            {{ m.sev_badge(d.severity) }}
+          </div>
+          <h1 class="text-xl lg:text-2xl font-semibold whitespace-pre-line">{{ d.detail }}</h1>
+          <p class="muted mt-1 flex items-center gap-1.5"><i data-lucide="map-pin" class="w-4 h-4"></i>{{ d.area.name }} / {{ d.location }}</p>
+        </div>
+        <div class="flex gap-2 no-print">
+          {% if manage and d.active %}<a href="{{ url_for('defects.edit', defect_id=d.id) }}" class="btn btn-ghost btn-sm"><i data-lucide="pencil"></i>แก้ไข</a>{% endif %}
+          <a href="{{ url_for('defects.print_view', defect_id=d.id) }}" target="_blank" class="btn btn-ghost btn-sm"><i data-lucide="file-down"></i>PDF</a>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+        {% set info = [
+          ('วันที่บันทึก', d.created_at|thdate(True)),
+          ('กำหนดแก้ไข', d.due_date|thdate(True)),
+          ('ผู้ตรวจ', d.inspector.display),
+          ('ผู้รับผิดชอบ', d.assignee.display),
+        ] %}
+        {% for k, v in info %}
+          <div class="glass-soft px-3 py-2.5"><div class="text-xs dim">{{ k }}</div><div class="text-sm mt-0.5 font-medium">{{ v }}</div></div>
+        {% endfor %}
+      </div>
+      {% if d.active %}
+        <div class="mt-4 px-4 py-3 rounded-xl text-sm flex items-center gap-2
+          {{ 'bg-rose-400/10 border border-rose-400/30 text-rose-100' if d.days_left < 0 else ('bg-amber-400/10 border border-amber-400/30 text-amber-100' if d.days_left <= 1 else 'bg-sky-400/10 border border-sky-400/25 text-sky-100') }}">
+          <i data-lucide="{{ 'triangle-alert' if d.days_left < 0 else 'timer' }}" class="w-5 h-5"></i>
+          {% if d.status == 'submitted' %}ส่งงานแล้วเมื่อ {{ d.submitted_at|thdatetime }} — รอผู้ตรวจตรวจรับ
+          {% elif d.days_left < 0 %}เลยกำหนดแก้ไขมาแล้ว {{ -d.days_left }} วัน{% if d.ncr %} · ออก <a class="underline" href="{{ url_for('ncr.view', ncr_id=d.ncr.id) }}">{{ d.ncr.code }}</a> แล้ว{% endif %}
+          {% elif d.days_left == 0 %}ครบกำหนดแก้ไขวันนี้
+          {% else %}เหลือเวลาอีก {{ d.days_left }} วัน{% endif %}
+        </div>
+      {% elif d.ncr %}
+        <div class="mt-4 text-sm muted">เคยออก <a class="underline" href="{{ url_for('ncr.view', ncr_id=d.ncr.id) }}">{{ d.ncr.code }}</a> (ปิดแล้ว {{ d.ncr.closed_at|thdate }})</div>
+      {% endif %}
+    </div>
+
+    {# ---------- รูปก่อนแก้ ---------- #}
+    <div class="glass p-5 lg:p-6 reveal">
+      <h2 class="font-semibold mb-3 flex items-center gap-2"><i data-lucide="image" class="w-5 h-5 text-rose-300"></i>รูปภาพปัญหา (ก่อนแก้ไข)</h2>
+      <div class="photo-grid">
+        {% for p in d.before_photos %}<img loading="lazy" src="{{ url_for('main.media', rel=p.thumb_path) }}" data-full="{{ url_for('main.media', rel=p.path) }}" alt="">{% endfor %}
+      </div>
+    </div>
+
+    {# ---------- รูปหลังแก้ (ทุกรอบ) ---------- #}
+    {% if d.after_rounds %}
+    <div class="glass p-5 lg:p-6 reveal">
+      <h2 class="font-semibold mb-3 flex items-center gap-2"><i data-lucide="image-up" class="w-5 h-5 text-emerald-300"></i>รูปภาพหลังแก้ไข</h2>
+      {% for r, photos in d.after_rounds.items()|reverse %}
+        <div class="mb-4 last:mb-0">
+          <div class="text-sm muted mb-2">ส่งครั้งที่ {{ r }} · {{ photos[0].created_at|thdatetime }}{% if loop.first and d.status == 'closed' %} · <span class="text-emerald-300">ผ่านการตรวจรับ</span>{% endif %}</div>
+          <div class="photo-grid">{% for p in photos %}<img loading="lazy" src="{{ url_for('main.media', rel=p.thumb_path) }}" data-full="{{ url_for('main.media', rel=p.path) }}" alt="">{% endfor %}</div>
+        </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ---------- ผู้รับผิดชอบ: ส่งงานแก้ไข ---------- #}
+    {% if d.assignee_id == g.user.id and d.status in ('open', 'rework') %}
+    <form id="submit" method="post" enctype="multipart/form-data" action="{{ url_for('defects.submit_fix', defect_id=d.id) }}" class="glass p-5 lg:p-6 reveal space-y-4" style="border-color:rgba(52,211,153,.35)" data-busy="กำลังส่งงาน…">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h2 class="font-semibold flex items-center gap-2"><i data-lucide="send" class="w-5 h-5 text-emerald-300"></i>ส่งงานแก้ไข</h2>
+      {% if d.status == 'rework' %}
+        {% set last_reject = d.logs|selectattr('action', 'equalto', 'rejected')|list|last %}
+        {% if last_reject %}<div class="px-4 py-3 rounded-xl bg-orange-400/10 border border-orange-400/30 text-orange-100 text-sm"><b>ผู้ตรวจตีกลับ:</b> {{ last_reject.note }}</div>{% endif %}
+      {% endif %}
+      <div data-picker>
+        <label class="label">รูปภาพหลังแก้ไข <span class="req">*</span> <span class="dim">(<span data-picker-count>0</span> รูป)</span></label>
+        <input type="file" data-picker-target class="hidden" multiple accept="image/*">
+        <div class="grid grid-cols-3 sm:grid-cols-5 gap-3" data-picker-grid>
+          <div class="picker-add-wrap contents">
+            <label class="picker-add"><i data-lucide="camera" class="w-7 h-7"></i>ถ่ายรูป
+              <input type="file" name="photos" data-picker-source class="hidden" accept="image/*" capture="environment"></label>
+            <label class="picker-add"><i data-lucide="images" class="w-7 h-7"></i>เลือกจากคลัง
+              <input type="file" name="photos" data-picker-source class="hidden" accept="image/*" multiple></label>
+          </div>
+        </div>
+      </div>
+      <div>
+        <label class="label">หมายเหตุการแก้ไข</label>
+        <textarea name="note" class="field min-h-[80px]" placeholder="อธิบายสิ่งที่แก้ไข (ถ้ามี)"></textarea>
+      </div>
+      <button class="btn btn-ok w-full sm:w-auto !px-8" type="submit"><i data-lucide="send"></i>ส่งงานให้ผู้ตรวจ</button>
+    </form>
+    {% endif %}
+
+    {# ---------- ผู้ตรวจ: ตรวจรับ / ตีกลับ ---------- #}
+    {% if manage and d.status == 'submitted' %}
+    <div id="review" class="glass p-5 lg:p-6 reveal space-y-4" style="border-color:rgba(56,189,248,.4)">
+      <h2 class="font-semibold flex items-center gap-2"><i data-lucide="clipboard-check" class="w-5 h-5 text-sky-300"></i>ตรวจรับงาน</h2>
+      <p class="text-sm muted">ตรวจรูปหลังแก้ไขด้านบน แล้วเลือกตรวจรับ (ปิดงาน) หรือตีกลับให้แก้ไขใหม่</p>
+      <form method="post" action="{{ url_for('defects.review', defect_id=d.id) }}" class="space-y-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <textarea name="note" class="field min-h-[80px]" placeholder="ความเห็น (จำเป็นเมื่อตีกลับ)"></textarea>
+        <div class="flex flex-wrap gap-2">
+          <button class="btn btn-ok" name="decision" value="approve"><i data-lucide="check-check"></i>ตรวจรับ / ปิดงาน</button>
+          <button class="btn btn-bad" name="decision" value="reject"><i data-lucide="rotate-ccw"></i>ตีกลับให้แก้ไขใหม่</button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ---------- ไทม์ไลน์ ---------- #}
+  <div class="space-y-4 lg:space-y-5">
+    <div class="glass p-5 lg:p-6 reveal" data-delay="120">
+      <h2 class="font-semibold mb-4 flex items-center gap-2"><i data-lucide="history" class="w-5 h-5"></i>ติดตามงาน</h2>
+      <div class="timeline">
+        {% for l in d.logs|reverse %}
+          <div class="tl-item t-{{ l.action }}">
+            <div class="text-sm font-medium {{ 'text-rose-300' if l.action in ('ncr', 'rejected') else ('text-emerald-300' if l.action == 'approved' else '') }}">{{ LOG_ACTIONS.get(l.action, l.action) }}</div>
+            <div class="text-xs dim">{{ l.created_at|thdatetime }} · {{ l.user.username if l.user else 'ระบบ' }}</div>
+            {% if l.note %}<div class="text-sm muted mt-1 whitespace-pre-line">{{ l.note }}</div>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% if g.user.role == 'admin' %}
+    <form method="post" action="{{ url_for('defects.delete', defect_id=d.id) }}" data-confirm="ลบ {{ d.code }} และรูปทั้งหมด? ย้อนกลับไม่ได้" class="text-right">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-bad btn-sm"><i data-lucide="trash-2"></i>ลบ Defect นี้</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

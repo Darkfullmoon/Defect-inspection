@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}สถิติและการวิเคราะห์{% endblock %}
+{% block heading %}สถิติและการวิเคราะห์{% endblock %}
+{% block content %}
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5 mb-5">
+  {% set ks = [
+    ('ปิดงานแล้ว', kpi.closed, 'จาก ' ~ kpi.total ~ ' รายการ', 'circle-check-big', 'ki-green'),
+    ('เวลาแก้ไขเฉลี่ย', kpi.avg_days, 'วัน (บันทึก → ปิดงาน)', 'timer', 'ki-blue'),
+    ('ปิดงานทันกำหนด', kpi.on_time_rate, '% ของงานที่ปิดแล้ว', 'target', 'ki-amber'),
+    ('NCR ทั้งหมด', kpi.ncr_total, kpi.ncr_rate ~ '% ของ Defect', 'triangle-alert', 'ki-red'),
+  ] %}
+  {% for label, val, sub, icon, cls in ks %}
+  <div class="glass lift reveal p-4 lg:p-5" data-delay="{{ loop.index0 * 80 }}">
+    <div class="flex items-center gap-3">
+      <div class="kpi-icon {{ cls }}"><i data-lucide="{{ icon }}"></i></div>
+      <div class="text-sm muted">{{ label }}</div>
+    </div>
+    <div class="kpi-num mt-3" data-count="{{ val }}">{{ val }}</div>
+    <div class="text-xs dim mt-1">{{ sub }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5">
+  <div class="glass p-5 lg:col-span-8 reveal">
+    <h2 class="font-semibold mb-2">แนวโน้ม 12 เดือน</h2>
+    <div id="trend" class="min-h-[300px]"></div>
+  </div>
+  <div class="glass p-5 lg:col-span-4 reveal" data-delay="100">
+    <h2 class="font-semibold mb-2">ระดับความรุนแรง</h2>
+    <div id="severity" class="min-h-[300px]"></div>
+  </div>
+  <div class="glass p-5 lg:col-span-6 reveal">
+    <h2 class="font-semibold mb-2">Defect ตามพื้นที่</h2>
+    <div id="area" class="min-h-[300px]"></div>
+  </div>
+  <div class="glass p-5 lg:col-span-6 reveal" data-delay="100">
+    <h2 class="font-semibold mb-2">สถานะงานตามผู้รับผิดชอบ</h2>
+    <div id="people" class="min-h-[300px]"></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const C = DM.colors, D = {{ data|tojson }};
+  const empty = { noData: { text: "ยังไม่มีข้อมูล", style: { color: "#7380ad", fontSize: "14px" } } };
+  DM.chart(document.getElementById("trend"), Object.assign({
+    chart: { type: "area", height: 310 },
+    series: [{ name: "บันทึกใหม่", data: D.trend.created }, { name: "ปิดงาน", data: D.trend.closed }, { name: "ออก NCR", data: D.trend.ncr }],
+    xaxis: { categories: D.trend.labels, axisBorder: { show: false }, axisTicks: { show: false } },
+    yaxis: { labels: { formatter: (v) => Math.round(v) } },
+    colors: [C.blue, C.ok, C.bad], stroke: { curve: "smooth", width: 3 },
+    fill: { type: "gradient", gradient: { opacityFrom: .45, opacityTo: 0 } },
+    legend: { position: "top", horizontalAlign: "right" },
+  }, empty));
+  DM.chart(document.getElementById("severity"), Object.assign({
+    chart: { type: "radialBar", height: 320 },
+    series: (() => { const t = D.severity.series.reduce((a, b) => a + b, 0) || 1; return D.severity.series.map((v) => Math.round(v * 100 / t)); })(),
+    labels: D.severity.labels, colors: [C.ok, C.warn, C.bad],
+    plotOptions: { radialBar: { hollow: { size: "32%" }, track: { background: "rgba(255,255,255,.06)" },
+      dataLabels: { name: { fontSize: "14px" }, value: { fontSize: "20px", color: "#fff", formatter: (v) => v + "%" },
+        total: { show: true, label: "ทั้งหมด", color: "#aab3d6", formatter: () => D.severity.series.reduce((a, b) => a + b, 0) + " รายการ" } } } },
+    legend: { show: true, position: "bottom" },
+  }, empty));
+  DM.chart(document.getElementById("area"), Object.assign({
+    chart: { type: "bar", height: Math.max(300, D.area.labels.length * 46) },
+    series: [{ name: "ทั้งหมด", data: D.area.total }, { name: "ปิดแล้ว", data: D.area.closed }],
+    xaxis: { categories: D.area.labels }, colors: [C.violet, C.ok],
+    plotOptions: { bar: { horizontal: true, borderRadius: 6, barHeight: "62%" } },
+    legend: { position: "top", horizontalAlign: "right" },
+  }, empty));
+  DM.chart(document.getElementById("people"), Object.assign({
+    chart: { type: "bar", height: Math.max(300, D.people.labels.length * 40), stacked: true },
+    series: [{ name: "แก้ไขแล้ว", data: D.people.closed }, { name: "กำลังดำเนินการ", data: D.people.progress }, { name: "NCR", data: D.people.ncr }],
+    xaxis: { categories: D.people.labels }, colors: [C.ok, C.warn, C.bad],
+    plotOptions: { bar: { horizontal: true, borderRadius: 5, barHeight: "60%" } },
+    legend: { position: "top", horizontalAlign: "right" },
+  }, empty));
+});
+</script>
+{% endblock %}

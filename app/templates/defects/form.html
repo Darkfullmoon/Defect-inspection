@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}{{ 'แก้ไข ' ~ d.code if d else 'บันทึก Defect' }}{% endblock %}
+{% block back %}<a href="{{ url_for('defects.detail', defect_id=d.id) if d else url_for('main.dashboard') }}" class="icon-btn -ml-1"><i data-lucide="arrow-left"></i></a>{% endblock %}
+{% block heading %}{{ 'แก้ไข ' ~ d.code if d else 'บันทึก Defect (หน้างาน)' }}{% endblock %}
+{% block content %}
+{% set f = form %}
+<form method="post" enctype="multipart/form-data" data-stepper class="max-w-[760px] mx-auto"
+      data-existing-photos="{{ d.before_photos|length if d else 0 }}" data-start-step="{{ 2 if errors and f.get('detail') else 0 }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="glass p-5 sm:p-7">
+    <div class="stepper mb-6 select-none">
+      <div class="st on cursor-pointer"><b>1</b>ข้อมูล</div><div class="bar"></div>
+      <div class="st cursor-pointer"><b>2</b>รูปภาพ</div><div class="bar"></div>
+      <div class="st cursor-pointer"><b>3</b>ตรวจสอบ</div>
+    </div>
+
+    {% if errors %}
+      <div class="mb-5 px-4 py-3 rounded-xl border border-rose-400/40 bg-rose-400/10 text-rose-100 text-sm">
+        <ul class="list-disc pl-5 space-y-0.5">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+      </div>
+    {% endif %}
+    <div data-step-error class="hidden mb-4 px-4 py-3 rounded-xl border border-amber-400/40 bg-amber-400/10 text-amber-100 text-sm"></div>
+
+    {# ---------- ขั้นที่ 1: ข้อมูล ---------- #}
+    <section data-step class="space-y-4">
+      {% if g.user.role == 'admin' %}
+      <div>
+        <label class="label">ผู้ตรวจ <span class="req">*</span></label>
+        <select name="inspector_id" id="inspector_id" class="field" required>
+          <option value="">— เลือกผู้ตรวจ —</option>
+          {% for i in inspectors %}<option value="{{ i.id }}" {{ 'selected' if f.get('inspector_id') == i.id|string }}>{{ i.display }}</option>{% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label">พื้นที่ / หน่วยงาน <span class="req">*</span></label>
+          <select name="area_id" class="field" required>
+            <option value="">— เลือกพื้นที่ —</option>
+            {% for ar in areas %}<option value="{{ ar.id }}" {{ 'selected' if f.get('area_id') == ar.id|string }}>{{ ar.name }}</option>{% endfor %}
+            {% if d and not d.area.active %}<option value="{{ d.area_id }}" selected>{{ d.area.name }}</option>{% endif %}
+          </select>
+        </div>
+        <div>
+          <label class="label">ตำแหน่ง / ชั้น <span class="req">*</span></label>
+          <input name="location" class="field" value="{{ f.get('location', '') }}" placeholder="เช่น ชั้น 3 ห้อง 305" maxlength="160" required>
+        </div>
+      </div>
+      <div>
+        <label class="label">รายละเอียดปัญหา <span class="req">*</span></label>
+        <textarea name="detail" class="field min-h-[110px]" placeholder="เช่น ผนังมีรอยแตกบริเวณมุมห้อง" required>{{ f.get('detail', '') }}</textarea>
+      </div>
+      <div>
+        <label class="label">ระดับความรุนแรง <span class="req">*</span></label>
+        <div class="seg">
+          {% set sv = f.get('severity', 'medium') %}
+          {% for k, v in SEVERITY.items() %}
+            <input type="radio" name="severity" id="sev-{{ k }}" value="{{ k }}" {{ 'checked' if sv == k }}>
+            <label for="sev-{{ k }}" class="sev-{{ k }}">{{ v }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label">กำหนดแก้ไขภายใน <span class="req">*</span></label>
+          <input type="date" name="due_date" class="field" value="{{ f.get('due_date') or default_due.isoformat() }}"
+                 {% if not d %}min="{{ today.isoformat() }}"{% endif %} required>
+        </div>
+        <div>
+          <label class="label">ผู้รับผิดชอบแก้ไข <span class="req">*</span></label>
+          <select name="assignee_id" id="assignee_id" class="field" required>
+            <option value="">— เลือกผู้รับผิดชอบ —</option>
+            {% for u in my_team %}<option value="{{ u.id }}" {{ 'selected' if f.get('assignee_id') == u.id|string }}>{{ u.display }}</option>{% endfor %}
+          </select>
+          {% if g.user.role == 'inspector' and not my_team %}
+            <p class="text-xs text-amber-300 mt-1.5">ยังไม่มีผู้รับผิดชอบที่จับคู่กับคุณ — ติดต่อ Admin ให้จับคู่ก่อน</p>
+          {% endif %}
+        </div>
+      </div>
+      <div class="flex justify-end pt-2"><button type="button" class="btn btn-primary" data-next>ถัดไป<i data-lucide="arrow-right"></i></button></div>
+    </section>
+
+    {# ---------- ขั้นที่ 2: รูปภาพ ---------- #}
+    <section data-step class="hidden space-y-4">
+      {% if d and d.before_photos %}
+        <div>
+          <div class="label">รูปที่มีอยู่แล้ว</div>
+          <div class="photo-grid">{% for p in d.before_photos %}<img src="{{ url_for('main.media', rel=p.thumb_path) }}" data-full="{{ url_for('main.media', rel=p.path) }}" alt="">{% endfor %}</div>
+        </div>
+      {% endif %}
+      <div data-picker>
+        <label class="label">{{ 'เพิ่มรูปภาพปัญหา' if d else 'แนบรูปภาพปัญหา' }} {% if not d %}<span class="req">*</span>{% endif %} <span class="dim">(<span data-picker-count>0</span> รูป)</span></label>
+        <input type="file" data-picker-target class="hidden" multiple accept="image/*">
+        <div class="grid grid-cols-3 sm:grid-cols-4 gap-3" data-picker-grid>
+          <div class="picker-add-wrap contents">
+            <label class="picker-add"><i data-lucide="camera" class="w-7 h-7"></i>ถ่ายรูป
+              <input type="file" name="photos" data-picker-source class="hidden" accept="image/*" capture="environment"></label>
+            <label class="picker-add"><i data-lucide="images" class="w-7 h-7"></i>เลือกจากคลัง
+              <input type="file" name="photos" data-picker-source class="hidden" accept="image/*" multiple></label>
+          </div>
+        </div>
+        <p class="text-xs dim mt-2">ระบบย่อรูปให้อัตโนมัติก่อนอัปโหลด เพื่อประหยัดเน็ตมือถือ</p>
+      </div>
+      <div class="flex justify-between pt-2">
+        <button type="button" class="btn btn-ghost" data-prev><i data-lucide="arrow-left"></i>ย้อนกลับ</button>
+        <button type="button" class="btn btn-primary" data-next>ถัดไป<i data-lucide="arrow-right"></i></button>
+      </div>
+    </section>
+
+    {# ---------- ขั้นที่ 3: ตรวจสอบ ---------- #}
+    <section data-step class="hidden space-y-4">
+      <div class="glass-soft p-4" data-review></div>
+      <div class="flex justify-between pt-2">
+        <button type="button" class="btn btn-ghost" data-prev><i data-lucide="arrow-left"></i>ย้อนกลับ</button>
+        <button type="submit" class="btn btn-primary !px-8"><i data-lucide="save"></i>{{ 'บันทึกการแก้ไข' if d else 'บันทึก' }}</button>
+      </div>
+    </section>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+{% if g.user.role == 'admin' %}
+<script>
+/* Admin: เลือกผู้ตรวจแล้วรายชื่อผู้รับผิดชอบเปลี่ยนตามการจับคู่ */
+(function () {
+  const team = {{ team|tojson }};
+  const ins = document.getElementById("inspector_id"), as = document.getElementById("assignee_id");
+  const keep = {{ form.get('assignee_id', '')|tojson }};
+  function fill() {
+    const list = team[ins.value] || [];
+    as.innerHTML = '<option value="">' + (ins.value ? (list.length ? "— เลือกผู้รับผิดชอบ —" : "ผู้ตรวจนี้ยังไม่มีผู้รับผิดชอบที่จับคู่") : "— เลือกผู้ตรวจก่อน —") + "</option>";
+    list.forEach((u) => { const o = new Option(u.name, u.id); if (String(u.id) === keep) o.selected = true; as.add(o); });
+  }
+  ins.addEventListener("change", fill); fill();
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}NCR{% endblock %}
+{% block heading %}NCR — ใบแจ้งงานไม่เป็นไปตามข้อกำหนด{% endblock %}
+{% block content %}
+<div class="glass p-4 lg:p-5 reveal">
+  <div class="flex flex-wrap items-center gap-3 mb-4">
+    <div>
+      <h1 class="text-xl font-semibold flex items-center gap-2"><i data-lucide="file-warning" class="w-6 h-6 text-rose-300"></i>NCR</h1>
+      <p class="text-sm muted">ระบบออก NCR อัตโนมัติเมื่อ Defect เลยกำหนดแก้ไขแล้วยังไม่ได้ส่งงาน และปิดให้เองเมื่อผู้ตรวจตรวจรับ</p>
+    </div>
+    <div class="ml-auto flex gap-1.5">
+      {% for v, label in [('', 'ทั้งหมด'), ('open', 'ยังไม่ปิด'), ('closed', 'ปิดแล้ว')] %}
+        <a href="{{ url_for('ncr.index', status=v) }}" class="btn btn-sm {{ 'btn-primary' if status == v else 'btn-ghost' }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="tbl">
+      <thead><tr><th>เลขที่ NCR</th><th>วันที่ออก</th><th>Defect</th><th>รายละเอียด</th><th>ผู้รับผิดชอบ</th><th>กำหนดเดิม</th><th>สถานะ</th><th class="text-right">เอกสาร</th></tr></thead>
+      <tbody>
+      {% for n in items %}{% set d = n.defect %}
+        <tr>
+          <td><a class="code-link !text-rose-300" href="{{ url_for('ncr.view', ncr_id=n.id) }}">{{ n.code }}</a></td>
+          <td class="whitespace-nowrap">{{ n.issued_at|thdate }}</td>
+          <td class="whitespace-nowrap"><a class="code-link" href="{{ url_for('defects.detail', defect_id=d.id) }}">{{ d.code }}</a><div class="text-xs dim">{{ d.area.name }} / {{ d.location }}</div></td>
+          <td><div class="flex items-center gap-3 min-w-[200px]">{{ m.thumb(d) }}<span class="line-clamp-2">{{ d.detail }}</span></div></td>
+          <td class="whitespace-nowrap">{{ d.assignee.username }}<div class="text-xs dim">{{ d.assignee.full_name }}</div></td>
+          <td class="whitespace-nowrap">{{ n.due_date_at_issue|thdate }}</td>
+          <td>{% if n.status == 'open' %}<span class="badge b-ncr">ยังไม่ปิด</span><div class="text-[11px] dim mt-1">{{ STATUS[d.status] }}</div>{% else %}<span class="badge b-closed">ปิดแล้ว</span><div class="text-[11px] dim mt-1">{{ n.closed_at|thdate }}</div>{% endif %}</td>
+          <td class="text-right"><a class="btn btn-ghost btn-sm" href="{{ url_for('ncr.view', ncr_id=n.id) }}" target="_blank"><i data-lucide="file-down"></i>PDF</a></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8" class="text-center py-12 dim">ยังไม่มี NCR 🎉</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

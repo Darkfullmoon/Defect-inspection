@@ -1,0 +1,54 @@
+{% extends "print_base.html" %}
+{% block title %}{{ d.code }}{% endblock %}
+{% block page %}
+<div class="head">
+  <div>
+    <h1>ใบรายงาน Defect</h1>
+    <div class="org">Home · Defect Management System</div>
+  </div>
+  <div class="docno">
+    <b>{{ d.code }}</b><br>
+    <span class="tag t-{{ 'ncr' if d.bucket == 'ncr' else d.status }}">{{ BUCKETS['ncr'] if d.bucket == 'ncr' else STATUS[d.status] }}</span>
+  </div>
+</div>
+
+<table class="kv">
+  <tr><td class="k">พื้นที่ / หน่วยงาน</td><td>{{ d.area.name }}</td><td class="k">ตำแหน่ง / ชั้น</td><td>{{ d.location }}</td></tr>
+  <tr><td class="k">วันที่บันทึก</td><td>{{ d.created_at|thdate(True) }}</td><td class="k">กำหนดแก้ไข</td><td>{{ d.due_date|thdate(True) }}</td></tr>
+  <tr><td class="k">ความรุนแรง</td><td>{{ SEVERITY[d.severity] }}</td><td class="k">วันที่ปิดงาน</td><td>{{ d.closed_at|thdate(True) if d.closed_at else '-' }}</td></tr>
+  <tr><td class="k">ผู้ตรวจ</td><td>{{ d.inspector.display }}</td><td class="k">ผู้รับผิดชอบ</td><td>{{ d.assignee.display }}</td></tr>
+  {% if d.ncr %}<tr><td class="k">NCR</td><td colspan="3">{{ d.ncr.code }} ออกเมื่อ {{ d.ncr.issued_at|thdate(True) }} ({{ 'ปิดแล้ว' if d.ncr.status == 'closed' else 'ยังไม่ปิด' }})</td></tr>{% endif %}
+</table>
+
+<h2>รายละเอียดปัญหา</h2>
+<div class="box">{{ d.detail }}</div>
+
+<h2>รูปภาพปัญหา (ก่อนแก้ไข)</h2>
+<div class="photos">{% for p in d.before_photos %}<img src="{{ url_for('main.media', rel=p.path) }}" alt="">{% endfor %}</div>
+
+{% if d.after_rounds %}
+  {% set last_round = d.after_rounds|list|last %}
+  <div class="avoid">
+    <h2>รูปภาพหลังแก้ไข (ส่งครั้งที่ {{ last_round }})</h2>
+    <div class="photos">{% for p in d.after_rounds[last_round] %}<img src="{{ url_for('main.media', rel=p.path) }}" alt="">{% endfor %}</div>
+  </div>
+{% endif %}
+
+<div class="avoid">
+  <h2>ประวัติการดำเนินการ</h2>
+  <table class="list">
+    <thead><tr><th style="width:24%">วันเวลา</th><th style="width:22%">การดำเนินการ</th><th style="width:10%">โดย</th><th>หมายเหตุ</th></tr></thead>
+    <tbody>
+    {% for l in d.logs %}
+      <tr><td>{{ l.created_at|thdatetime }}</td><td>{{ LOG_ACTIONS.get(l.action, l.action) }}</td><td>{{ l.user.username if l.user else 'ระบบ' }}</td><td style="white-space:pre-line">{{ l.note }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="sign avoid">
+  <div><div class="line"></div>ผู้ตรวจ<br><span class="muted">({{ d.inspector.full_name or d.inspector.username }})</span></div>
+  <div><div class="line"></div>ผู้รับผิดชอบแก้ไข<br><span class="muted">({{ d.assignee.full_name or d.assignee.username }})</span></div>
+  <div><div class="line"></div>ผู้อนุมัติ<br><span class="muted">(...................................)</span></div>
+</div>
+{% endblock %}

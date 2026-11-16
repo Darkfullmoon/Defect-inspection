@@ -1,0 +1,57 @@
+{% extends "print_base.html" %}
+{% block title %}{{ n.code }}{% endblock %}
+{% block page %}
+<div class="head">
+  <div>
+    <h1>ใบแจ้งงานไม่เป็นไปตามข้อกำหนด</h1>
+    <div style="font-size:15px;font-weight:600;color:#b91c1c">NON-CONFORMANCE REPORT (NCR)</div>
+    <div class="org">Home · Defect Management System</div>
+  </div>
+  <div class="docno">
+    <b>{{ n.code }}</b><br>
+    <span class="muted">วันที่ออก {{ n.issued_at|thdate(True) }}</span><br>
+    <span class="tag {{ 't-closed' if n.status == 'closed' else 't-ncr' }}">{{ 'ปิดแล้ว' if n.status == 'closed' else 'ยังไม่ปิด' }}</span>
+  </div>
+</div>
+
+<table class="kv">
+  <tr><td class="k">อ้างอิง Defect</td><td>{{ d.code }}</td><td class="k">ความรุนแรง</td><td>{{ SEVERITY[d.severity] }}</td></tr>
+  <tr><td class="k">พื้นที่ / หน่วยงาน</td><td>{{ d.area.name }}</td><td class="k">ตำแหน่ง / ชั้น</td><td>{{ d.location }}</td></tr>
+  <tr><td class="k">วันที่พบปัญหา</td><td>{{ d.created_at|thdate(True) }}</td><td class="k">กำหนดแก้ไข</td><td>{{ n.due_date_at_issue|thdate(True) }}</td></tr>
+  <tr><td class="k">ผู้รับผิดชอบ</td><td>{{ d.assignee.display }}</td><td class="k">ผู้ตรวจ / ผู้ออก NCR</td><td>{{ d.inspector.display }}</td></tr>
+  <tr><td class="k">สาเหตุการออก NCR</td><td colspan="3">ไม่ได้ดำเนินการแก้ไขและส่งงานภายในวันที่กำหนด (เลยกำหนด {{ (n.issued_at.date() - n.due_date_at_issue).days }} วัน ณ วันที่ออก)</td></tr>
+</table>
+
+<h2>รายละเอียดสิ่งที่ไม่เป็นไปตามข้อกำหนด</h2>
+<div class="box">{{ d.detail }}</div>
+
+<h2>รูปภาพประกอบ</h2>
+<div class="photos">{% for p in d.before_photos[:6] %}<img src="{{ url_for('main.media', rel=p.path) }}" alt="">{% endfor %}</div>
+
+<div class="avoid">
+  <h2>การแก้ไข / ปฏิบัติการแก้ไข (Corrective Action)</h2>
+  {% if d.after_rounds %}
+    {% set last_round = d.after_rounds|list|last %}
+    <div class="photos">{% for p in d.after_rounds[last_round][:6] %}<img src="{{ url_for('main.media', rel=p.path) }}" alt="">{% endfor %}</div>
+    {% set sub = d.logs|selectattr('action', 'equalto', 'submitted')|list|last %}
+    {% if sub %}<p>ส่งงานแก้ไขเมื่อ {{ sub.created_at|thdatetime }} — {{ sub.note }}</p>{% endif %}
+  {% else %}
+    <div class="box" style="min-height:90px"></div>
+  {% endif %}
+</div>
+
+<div class="avoid">
+  <h2>ผลการตรวจสอบ</h2>
+  {% if n.status == 'closed' %}
+    <p>ตรวจรับและปิด NCR เมื่อ {{ n.closed_at|thdatetime }}</p>
+  {% else %}
+    <p>☐ ผ่าน ปิด NCR &nbsp;&nbsp;&nbsp; ☐ ไม่ผ่าน ให้ดำเนินการแก้ไขใหม่</p>
+  {% endif %}
+</div>
+
+<div class="sign avoid">
+  <div><div class="line"></div>ผู้ออก NCR<br><span class="muted">({{ d.inspector.full_name or d.inspector.username }})</span><br>วันที่ ....../....../......</div>
+  <div><div class="line"></div>ผู้รับ NCR / ผู้รับผิดชอบ<br><span class="muted">({{ d.assignee.full_name or d.assignee.username }})</span><br>วันที่ ....../....../......</div>
+  <div><div class="line"></div>ผู้อนุมัติปิด NCR<br><span class="muted">(...................................)</span><br>วันที่ ....../....../......</div>
+</div>
+{% endblock %}

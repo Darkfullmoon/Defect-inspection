@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}ติดตามงาน{% endblock %}
+{% block heading %}ติดตามงาน{% endblock %}
+{% block content %}
+{% set tones = {'ncr': ('rose', 'triangle-alert'), 'today': ('amber', 'calendar-clock'), 'soon': ('sky', 'hourglass'), 'later': ('emerald', 'calendar-check'), 'waiting': ('violet', 'inbox')} %}
+<div class="mb-4 reveal">
+  <h1 class="text-xl lg:text-2xl font-semibold">ติดตามงานที่ยังไม่ปิด</h1>
+  <p class="muted text-sm">เรียงตามวันกำหนดแก้ไข — งานที่ใกล้หรือเลยกำหนดอยู่ด้านบน</p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-5">
+  {% for key, title, items in groups %}{% set tone, icon = tones[key] %}
+  <section class="glass p-4 lg:p-5 reveal" data-delay="{{ loop.index0 * 70 }}">
+    <h2 class="font-semibold mb-3 flex items-center gap-2">
+      <i data-lucide="{{ icon }}" class="w-5 h-5 text-{{ tone }}-300"></i>{{ title }}
+      <span class="ml-auto text-sm px-2.5 py-0.5 rounded-full bg-{{ tone }}-400/15 text-{{ tone }}-200">{{ items|length }}</span>
+    </h2>
+    <div class="space-y-2.5 max-h-[560px] overflow-y-auto pr-1">
+      {% for d in items %}{{ m.defect_card(d) }}{% else %}<div class="text-center text-sm dim py-6">ไม่มีรายการ</div>{% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}ผู้ใช้งาน{% endblock %}
+{% block heading %}จัดการผู้ใช้งาน{% endblock %}
+{% block content %}
+<div class="glass p-4 lg:p-5 reveal">
+  <div class="flex flex-wrap items-center gap-3 mb-4">
+    <div>
+      <h1 class="text-xl font-semibold">ผู้ใช้งาน</h1>
+      <p class="text-sm muted">ผู้ใช้ใหม่และผู้ที่ถูกรีเซ็ตจะเข้าด้วยรหัสกลาง แล้วต้องตั้งรหัสใหม่ทันที</p>
+    </div>
+    <div class="ml-auto flex flex-wrap gap-2">
+      {% for v, label in [('', 'ทั้งหมด'), ('inspector', 'ผู้ตรวจ'), ('user', 'ผู้รับผิดชอบ')] %}
+        <a href="{{ url_for('admin.users', role=v) }}" class="btn btn-sm {{ 'btn-primary' if role == v else 'btn-ghost' }}">{{ label }}</a>
+      {% endfor %}
+      <a href="{{ url_for('admin.user_new') }}" class="btn btn-primary btn-sm"><i data-lucide="user-plus"></i>สร้างผู้ใช้</a>
+    </div>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="tbl">
+      <thead><tr><th>ชื่อผู้ใช้</th><th>ชื่อ-นามสกุล</th><th>ประเภท</th><th>อีเมล</th><th>จับคู่กับ</th><th>สถานะ</th><th class="text-right">จัดการ</th></tr></thead>
+      <tbody>
+      {% for u in items %}
+        <tr class="{{ 'opacity-50' if not u.active }}">
+          <td><span class="inline-grid place-items-center w-11 h-8 rounded-lg font-semibold tracking-wider {{ 'bg-violet-500/20 text-violet-200' if u.role == 'inspector' else 'bg-sky-500/20 text-sky-200' }}">{{ u.username }}</span></td>
+          <td>{{ u.full_name }}</td>
+          <td class="whitespace-nowrap">{{ ROLES[u.role] }}</td>
+          <td class="text-sm muted">{{ u.email or '-' }}</td>
+          <td class="text-sm">
+            {% set pals = u.team if u.role == 'inspector' else u.inspectors %}
+            {% for p in pals %}<span class="inline-block px-2 py-0.5 mr-1 mb-1 rounded-md bg-white/5 border border-white/10 text-xs">{{ p.username }}</span>{% else %}<span class="text-amber-300 text-xs">ยังไม่จับคู่</span>{% endfor %}
+          </td>
+          <td class="whitespace-nowrap text-sm">
+            {% if not u.active %}<span class="badge b-closed !text-slate-400 !border-slate-500/40 !bg-transparent">ปิดใช้งาน</span>
+            {% elif u.must_change_password %}<span class="badge b-open">รอตั้งรหัสใหม่</span>
+            {% else %}<span class="badge b-closed">ใช้งาน</span>{% endif %}
+          </td>
+          <td class="text-right whitespace-nowrap">
+            <a href="{{ url_for('admin.user_edit', uid=u.id) }}" class="icon-btn" title="แก้ไข"><i data-lucide="pencil"></i></a>
+            <form method="post" action="{{ url_for('admin.user_reset', uid=u.id) }}" class="inline" data-confirm="รีเซ็ตรหัสผ่านของ {{ u.username }} เป็นรหัสกลาง?">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-ghost btn-sm" title="รีเซ็ตรหัสผ่าน"><i data-lucide="key-round"></i>รีเซ็ตรหัส</button>
+            </form>
+            <form method="post" action="{{ url_for('admin.user_toggle', uid=u.id) }}" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="icon-btn" title="{{ 'ปิดการใช้งาน' if u.active else 'เปิดการใช้งาน' }}"><i data-lucide="{{ 'user-x' if u.active else 'user-check' }}"></i></button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="text-center py-10 dim">ยังไม่มีผู้ใช้ — กด “สร้างผู้ใช้” เพื่อเริ่ม</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

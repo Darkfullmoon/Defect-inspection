@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1433">
+  <title>{% block title %}Defect Management{% endblock %} · Home</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['"IBM Plex Sans Thai"', 'sans-serif'] } } } }</script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=1">
+  {% block head %}{% endblock %}
+</head>
+<body class="antialiased">
+<div class="aurora no-print" aria-hidden="true"><span></span><span></span><span></span></div>
+
+{% set ep = request.endpoint or '' %}
+{% macro navlink(endpoint, icon, label, prefix=None) -%}
+  {% set on = ep == endpoint or (prefix and ep.startswith(prefix)) %}
+  <a href="{{ url_for(endpoint) }}" class="nav-link {{ 'active' if on }}"><i data-lucide="{{ icon }}"></i><span>{{ label }}</span></a>
+{%- endmacro %}
+
+<div class="app-shell">
+{% if g.user and not bare %}
+  {# ---------- เมนูซ้าย (คอม) ---------- #}
+  <aside class="hidden lg:flex fixed inset-y-0 left-0 w-[268px] p-4 z-30">
+    <div class="glass flex flex-col w-full p-4">
+      <a href="{{ url_for('main.dashboard') }}" class="flex items-center gap-3 px-2 pb-5 pt-1">
+        <div class="w-11 h-11 rounded-2xl grid place-items-center" style="background:linear-gradient(135deg,#fbbf24,#f59e0b);box-shadow:0 0 22px rgba(251,191,36,.55)">
+          <i data-lucide="hard-hat" class="w-6 h-6 text-slate-900"></i>
+        </div>
+        <div class="leading-tight">
+          <div class="font-semibold text-[15px]">Defect Management</div>
+          <div class="text-xs dim">ระบบบริหารจัดการ Defect</div>
+        </div>
+      </a>
+      <nav class="flex-1 space-y-1 overflow-y-auto">
+        {{ navlink('main.dashboard', 'layout-dashboard', 'หน้าหลัก (Dashboard)') }}
+        {% if g.user.role in ('inspector', 'admin') %}{{ navlink('defects.new', 'square-pen', 'บันทึก Defect') }}{% endif %}
+        {% set list_on = ep in ('defects.index', 'defects.detail', 'defects.edit') %}
+        <a href="{{ url_for('defects.index') }}" class="nav-link {{ 'active' if list_on }}"><i data-lucide="clipboard-list"></i><span>รายการ Defect</span></a>
+        {{ navlink('main.tracking', 'clock-3', 'ติดตามงาน') }}
+        {{ navlink('ncr.index', 'file-warning', 'NCR', 'ncr.') }}
+        {{ navlink('reports.index', 'file-text', 'รายงาน / PDF', 'reports.') }}
+        {{ navlink('main.stats', 'chart-column-increasing', 'สถิติและการวิเคราะห์') }}
+        <div class="pt-4 pb-1 px-3 text-[11px] uppercase tracking-wider dim">ตั้งค่า</div>
+        {% if g.user.role == 'admin' %}
+          {{ navlink('admin.users', 'users', 'ผู้ใช้งาน', 'admin.user') }}
+          {{ navlink('admin.pairing', 'link-2', 'จับคู่ผู้ตรวจ') }}
+          {{ navlink('admin.areas', 'map-pin', 'พื้นที่ / หน่วยงาน') }}
+        {% endif %}
+        {{ navlink('main.profile', 'user-cog', 'โปรไฟล์ของฉัน') }}
+      </nav>
+      <form method="post" action="{{ url_for('auth.logout') }}" class="pt-3 border-t border-white/10">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="nav-link w-full"><i data-lucide="log-out"></i><span>ออกจากระบบ</span></button>
+      </form>
+    </div>
+  </aside>
+
+  {# ---------- แถบบน ---------- #}
+  <header class="topbar sticky top-0 z-20 lg:pl-[268px]">
+    <div class="px-4 lg:px-8 pt-3 lg:pt-4">
+      <div class="glass flex items-center gap-3 px-4 py-2.5 lg:py-3" style="border-radius:18px">
+        {% block back %}{% endblock %}
+        <a href="{{ url_for('main.dashboard') }}" class="lg:hidden flex items-center gap-2">
+          <div class="w-9 h-9 rounded-xl grid place-items-center" style="background:linear-gradient(135deg,#fbbf24,#f59e0b)"><i data-lucide="hard-hat" class="w-5 h-5 text-slate-900"></i></div>
+        </a>
+        <div class="min-w-0">
+          <div class="font-semibold truncate text-[15px] lg:text-lg">{% block heading %}Defect Management{% endblock %}</div>
+        </div>
+        <div class="ml-auto flex items-center gap-1">
+          <details class="dropdown relative">
+            <summary class="icon-btn relative cursor-pointer" aria-label="การแจ้งเตือน">
+              <i data-lucide="bell"></i>
+              {% if unread_count %}<span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-[11px] font-semibold grid place-items-center shadow-[0_0_12px_rgba(244,63,94,.8)]">{{ unread_count if unread_count < 100 else '99+' }}</span>{% endif %}
+            </summary>
+            <div class="glass absolute right-0 mt-2 w-[320px] max-w-[88vw] p-2 z-50" style="background:rgba(16,23,58,.92)">
+              <div class="flex items-center justify-between px-3 py-2">
+                <div class="font-semibold">การแจ้งเตือน</div>
+                <a href="{{ url_for('main.notifications') }}" class="text-xs text-sky-300">ดูทั้งหมด</a>
+              </div>
+              {% for n in recent_notifications %}
+                <a href="{{ url_for('main.notification_open', nid=n.id) }}" class="flex gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5">
+                  {% if not n.is_read %}<span class="dot-unread mt-2"></span>{% else %}<span class="w-2"></span>{% endif %}
+                  <div class="min-w-0">
+                    <div class="text-sm truncate {{ 'text-rose-300' if n.kind == 'ncr' }}">{{ n.title }}</div>
+                    <div class="text-xs dim">{{ n.created_at|thdatetime }}</div>
+                  </div>
+                </a>
+              {% else %}
+                <div class="px-3 py-6 text-center dim text-sm">ยังไม่มีการแจ้งเตือน</div>
+              {% endfor %}
+            </div>
+          </details>
+          <a href="{{ url_for('reports.index') }}" class="icon-btn hidden sm:inline-grid" title="ส่งอีเมลรายงาน"><i data-lucide="mail"></i></a>
+          <a href="{{ url_for('main.profile') }}" class="flex items-center gap-2 pl-2 pr-1 py-1 rounded-xl hover:bg-white/5">
+            <div class="w-9 h-9 rounded-full grid place-items-center text-sm font-semibold" style="background:linear-gradient(135deg,#5b8cff,#8b5cf6)">{{ g.user.username }}</div>
+            <div class="hidden md:block leading-tight text-left">
+              <div class="text-sm font-medium max-w-[160px] truncate">{{ g.user.full_name or g.user.username }}</div>
+              <div class="text-[11px] dim">{{ ROLES[g.user.role] }}</div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+{% endif %}
+
+  <main class="{{ 'lg:pl-[268px]' if g.user and not bare }} px-4 lg:px-8 py-5 lg:py-6">
+    <div class="{{ 'max-w-[1500px] mx-auto' if not bare }}">
+      {% with msgs = get_flashed_messages(with_categories=true) %}
+        {% for cat, m in msgs %}
+          {% set c = {'success': 'border-emerald-400/40 bg-emerald-400/10 text-emerald-100', 'error': 'border-rose-400/40 bg-rose-400/10 text-rose-100'}.get(cat, 'border-sky-400/40 bg-sky-400/10 text-sky-100') %}
+          <div data-flash class="flash no-print mb-4 px-4 py-3 rounded-2xl border {{ c }} backdrop-blur flex gap-3 items-start">
+            <i data-lucide="{{ {'success': 'circle-check', 'error': 'circle-alert'}.get(cat, 'info') }}" class="w-5 h-5 mt-0.5 shrink-0"></i>
+            <div>{{ m }}</div>
+          </div>
+        {% endfor %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+{% if g.user and not bare %}
+  {# ---------- แถบล่าง (มือถือ) ---------- #}
+  <nav class="bottom-nav lg:hidden fixed bottom-0 inset-x-0 z-30 px-3" style="padding-bottom:max(.6rem, env(safe-area-inset-bottom))">
+    <div class="glass grid grid-cols-5 items-end px-1" style="border-radius:22px;background:rgba(14,20,52,.78)">
+      <a href="{{ url_for('main.dashboard') }}" class="{{ 'active' if ep == 'main.dashboard' }}"><i data-lucide="house"></i>หน้าหลัก</a>
+      <a href="{{ url_for('defects.index') }}" class="{{ 'active' if ep.startswith('defects.') and ep != 'defects.new' }}"><i data-lucide="clipboard-list"></i>รายการ</a>
+      {% if g.user.role in ('inspector', 'admin') %}
+        <a href="{{ url_for('defects.new') }}" class="!text-white"><span class="fab"><i data-lucide="plus"></i></span><span>บันทึก</span></a>
+      {% else %}
+        <a href="{{ url_for('main.tracking') }}" class="{{ 'active' if ep == 'main.tracking' }}"><span class="fab"><i data-lucide="clock-3"></i></span><span>งานของฉัน</span></a>
+      {% endif %}
+      <a href="{{ url_for('main.notifications') }}" class="{{ 'active' if ep == 'main.notifications' }}">
+        <span class="relative"><i data-lucide="bell"></i>{% if unread_count %}<span class="absolute -top-1 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-[10px] text-white grid place-items-center">{{ unread_count }}</span>{% endif %}</span>แจ้งเตือน</a>
+      <a href="{{ url_for('main.profile') }}" class="{{ 'active' if ep in ('main.profile', 'ncr.index', 'reports.index', 'main.stats') or ep.startswith('admin.') }}"><i data-lucide="layout-grid"></i>เมนู</a>
+    </div>
+  </nav>
+{% endif %}
+</div>
+
+<dialog id="lightbox" class="lightbox"><img alt="รูปขยาย"></dialog>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=1"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

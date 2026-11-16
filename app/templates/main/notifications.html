@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}การแจ้งเตือน{% endblock %}
+{% block heading %}การแจ้งเตือน{% endblock %}
+{% block content %}
+{% set icons = {'ncr': ('triangle-alert', 'text-rose-300'), 'due': ('calendar-clock', 'text-amber-300'), 'new': ('clipboard-plus', 'text-sky-300'),
+                'submitted': ('inbox', 'text-violet-300'), 'approved': ('circle-check-big', 'text-emerald-300'), 'rejected': ('rotate-ccw', 'text-orange-300')} %}
+<div class="glass p-4 lg:p-5 max-w-[820px] mx-auto reveal">
+  <div class="flex items-center gap-3 mb-3">
+    <h1 class="text-xl font-semibold">การแจ้งเตือน</h1>
+    {% if unread_count %}
+    <form method="post" action="{{ url_for('main.notifications_read_all') }}" class="ml-auto">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-ghost btn-sm"><i data-lucide="check-check"></i>อ่านทั้งหมด</button>
+    </form>
+    {% endif %}
+  </div>
+  <div class="divide-y divide-white/5">
+    {% for n in items %}{% set ic, col = icons.get(n.kind, ('bell', 'text-slate-300')) %}
+      <a href="{{ url_for('main.notification_open', nid=n.id) }}" class="flex gap-3 py-3.5 px-2 rounded-xl hover:bg-white/5 {{ 'opacity-60' if n.is_read }}">
+        <div class="w-10 h-10 rounded-xl bg-white/5 grid place-items-center shrink-0"><i data-lucide="{{ ic }}" class="w-5 h-5 {{ col }}"></i></div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-start gap-2"><div class="font-medium flex-1">{{ n.title }}</div>{% if not n.is_read %}<span class="dot-unread mt-2"></span>{% endif %}</div>
+          {% if n.body %}<div class="text-sm muted whitespace-pre-line line-clamp-3">{{ n.body }}</div>{% endif %}
+          <div class="text-xs dim mt-1">{{ n.created_at|thdatetime }}</div>
+        </div>
+      </a>
+    {% else %}
+      <div class="text-center py-12 dim">ยังไม่มีการแจ้งเตือน</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}พื้นที่ / หน่วยงาน{% endblock %}
+{% block heading %}พื้นที่ / หน่วยงาน{% endblock %}
+{% block content %}
+<div class="max-w-[720px] mx-auto space-y-4">
+  <form method="post" class="glass p-4 lg:p-5 flex gap-2 reveal">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="add">
+    <input name="name" class="field" placeholder="ชื่อพื้นที่ใหม่ เช่น อาคาร D" required>
+    <button class="btn btn-primary"><i data-lucide="plus"></i>เพิ่ม</button>
+  </form>
+  <div class="glass p-4 lg:p-5 reveal" data-delay="80">
+    <p class="text-sm muted mb-3">พื้นที่ที่ปิดใช้งานจะไม่แสดงในฟอร์มบันทึก Defect แต่ข้อมูลเดิมยังอยู่</p>
+    <div class="space-y-2">
+    {% for a in items %}
+      <div class="glass-soft p-2.5 flex items-center gap-2 {{ 'opacity-50' if not a.active }}">
+        <form method="post" class="flex-1 flex gap-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="rename"><input type="hidden" name="id" value="{{ a.id }}">
+          <input name="name" class="field !py-1.5" value="{{ a.name }}">
+          <button class="icon-btn" title="บันทึกชื่อ"><i data-lucide="check"></i></button>
+        </form>
+        <span class="text-xs dim whitespace-nowrap w-16 text-right">{{ usage.get(a.id, 0) }} รายการ</span>
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="{{ a.id }}">
+          <button class="btn btn-ghost btn-sm w-24">{{ 'ปิดใช้งาน' if a.active else 'เปิดใช้งาน' }}</button>
+        </form>
+      </div>
+    {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="th"><body style="margin:0;padding:24px;background:#eef1fb;font-family:Tahoma,'Sarabun',sans-serif;color:#1f2937">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
+<table role="presentation" width="760" cellspacing="0" cellpadding="0" style="max-width:760px;background:#fff;border-radius:16px;overflow:hidden">
+  <tr><td style="background:linear-gradient(135deg,#1e3a8a,#4c1d95);padding:20px 26px;color:#fff">
+    <div style="font-size:13px;opacity:.8">Defect Management System · Home</div>
+    <div style="font-size:20px;font-weight:bold;margin-top:4px">รายงาน Defect ({{ items|length }} รายการ)</div>
+    <div style="font-size:13px;opacity:.85;margin-top:2px">{{ summary }} · ส่งโดย {{ sender.display }}</div>
+  </td></tr>
+  <tr><td style="padding:18px 26px">
+    <table role="presentation" width="100%" cellspacing="6"><tr>
+      {% for label, val, col in [('ทั้งหมด', items|length, '#1e3a8a'), ('กำลังดำเนินการ', counts['progress'], '#b45309'), ('แก้ไขแล้ว', counts['closed'], '#047857'), ('เกินกำหนด (NCR)', counts['ncr'], '#b91c1c')] %}
+        <td style="background:#f3f4f6;border-radius:10px;padding:10px 12px"><div style="font-size:12px;color:#6b7280">{{ label }}</div><div style="font-size:22px;font-weight:bold;color:{{ col }}">{{ val }}</div></td>
+      {% endfor %}
+    </tr></table>
+    <table width="100%" cellspacing="0" cellpadding="6" style="border-collapse:collapse;font-size:13px;margin-top:10px">
+      <tr style="background:#1e3a8a;color:#fff"><th align="left">เลขที่</th><th align="left">พื้นที่</th><th align="left">รายละเอียด</th><th align="left">ผู้รับผิดชอบ</th><th align="left">กำหนด</th><th align="left">สถานะ</th></tr>
+      {% for d in items[:200] %}
+      <tr style="border-bottom:1px solid #e5e7eb;{{ 'background:#f9fafb' if loop.index is even }}">
+        <td><a href="{{ base }}/defects/{{ d.id }}" style="color:#1e3a8a">{{ d.code }}</a></td>
+        <td>{{ d.area.name }} / {{ d.location }}</td>
+        <td>{{ d.detail|truncate(80) }}</td>
+        <td>{{ d.assignee.username }}</td>
+        <td>{{ d.due_date|thdate }}</td>
+        <td style="color:{{ {'ncr': '#b91c1c', 'closed': '#047857'}.get(d.bucket, '#b45309') }};font-weight:bold">{{ BUCKETS['ncr'] if d.bucket == 'ncr' else STATUS[d.status] }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% if items|length > 200 %}<p style="color:#6b7280;font-size:12px">แสดง 200 รายการแรก ดูทั้งหมดในระบบ</p>{% endif %}
+    <p style="margin-top:18px"><a href="{{ base }}/reports/" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:10px 20px;border-radius:10px;font-weight:bold">เปิดรายงานในระบบ</a></p>
+  </td></tr>
+</table></td></tr></table>
+</body></html>

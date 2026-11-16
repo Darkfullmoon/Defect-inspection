@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Dashboard{% endblock %}
+{% block heading %}<span class="hidden lg:inline">Dashboard </span>ภาพรวม Defect{% endblock %}
+{% block content %}
+
+<div class="flex flex-wrap items-end justify-between gap-3 mb-5 reveal">
+  <div>
+    <h1 class="text-2xl lg:text-[28px] font-semibold">สวัสดี {{ g.user.full_name or g.user.username }}</h1>
+    <p class="muted text-sm mt-0.5">
+      {% if g.user.role == 'user' %}งานที่ได้รับมอบหมายให้คุณแก้ไข{% elif g.user.role == 'inspector' %}Defect ที่คุณเปิดและติดตาม{% else %}ภาพรวม Defect ทั้งระบบ{% endif %}
+      · ช่วงเวลา: <span class="text-white">{{ month_title }}</span>
+    </p>
+  </div>
+  <form method="get" class="flex items-center gap-2">
+    <span class="text-sm muted hidden sm:inline">เดือน</span>
+    <select name="month" class="field !py-2 !w-auto min-w-[190px]" data-autosubmit>
+      <option value="">ทั้งหมด</option>
+      {% for v, label in month_options %}<option value="{{ v }}" {{ 'selected' if v == month }}>{{ label }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+{# ---------- KPI ---------- #}
+<div class="grid grid-cols-2 xl:grid-cols-4 gap-3 lg:gap-5 mb-5">
+  {% set kpis = [
+    ('Defect ทั้งหมด', total, 'clipboard-list', 'ki-blue', ''),
+    ('กำลังดำเนินการ', counts['progress'], 'clock-3', 'ki-amber', 'progress'),
+    ('แก้ไขแล้ว', counts['closed'], 'circle-check-big', 'ki-green', 'closed'),
+    ('เกินกำหนด / ออก NCR', counts['ncr'], 'triangle-alert', 'ki-red', 'ncr'),
+  ] %}
+  {% for label, val, icon, cls, st in kpis %}
+  <a href="{{ url_for('defects.index', status=st) }}" class="glass lift reveal p-3.5 lg:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-2.5 lg:gap-4" data-delay="{{ loop.index0 * 90 }}">
+    <div class="kpi-icon {{ cls }}"><i data-lucide="{{ icon }}"></i></div>
+    <div class="min-w-0">
+      <div class="text-[12.5px] lg:text-sm muted leading-snug">{{ label }}</div>
+      <div class="flex items-baseline gap-1.5 mt-1"><span class="kpi-num" data-count="{{ val }}">{{ val }}</span><span class="text-sm muted">รายการ</span></div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+
+{# ---------- กราฟ + แจ้งเตือน ---------- #}
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-5 mb-5">
+  <div class="glass reveal p-5 lg:col-span-4" data-delay="100">
+    <h2 class="font-semibold mb-2">สถานะ Defect</h2>
+    <div id="donut" class="min-h-[250px]"></div>
+  </div>
+  <div class="glass reveal p-5 lg:col-span-5" data-delay="180">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="font-semibold">สถิติ Defect รายเดือน</h2>
+      <span class="text-xs dim">6 เดือนล่าสุด</span>
+    </div>
+    <div id="monthly" class="min-h-[250px]"></div>
+  </div>
+  <div class="glass reveal p-5 lg:col-span-3" data-delay="260">
+    <h2 class="font-semibold mb-3 flex items-center gap-2"><i data-lucide="bell-ring" class="w-5 h-5 text-amber-300"></i>การแจ้งเตือน</h2>
+    {% set al = [
+      ('triangle-alert', 'Defect เกินกำหนด (NCR)', alerts.overdue, 'ncr', 'rose'),
+      ('calendar-clock', 'ครบกำหนดแก้ไขวันนี้', alerts.due_today, '', 'amber'),
+      ('hourglass', 'ครบกำหนดภายใน 3 วัน', alerts.due_soon, '', 'sky'),
+      ('inbox', 'ส่งงานแล้ว รอตรวจรับ', alerts.waiting, 'submitted', 'violet'),
+      ('rotate-ccw', 'ตีกลับให้แก้ไขใหม่', alerts.rework, 'rework', 'orange'),
+    ] %}
+    <div class="space-y-2">
+    {% for icon, label, n, st, color in al %}
+      <a href="{{ url_for('defects.index', status=st) if st else url_for('main.tracking') }}"
+         class="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition hover:bg-white/5 {{ 'border-rose-400/40 bg-rose-400/10' if color == 'rose' and n else 'border-white/10' }}">
+        <i data-lucide="{{ icon }}" class="w-5 h-5 text-{{ color }}-300 shrink-0"></i>
+        <span class="text-sm flex-1">{{ label }}</span>
+        <span class="text-sm font-semibold {{ 'text-' ~ color ~ '-300' if n else 'dim' }}">{{ n }}</span>
+        <i data-lucide="chevron-right" class="w-4 h-4 dim"></i>
+      </a>
+    {% endfor %}
+    </div>
+  </div>
+</div>
+
+{# ---------- รายการล่าสุด ---------- #}
+<div class="glass reveal p-4 lg:p-5" data-delay="120">
+  <div class="flex flex-wrap items-center gap-3 mb-4">
+    <h2 class="font-semibold flex items-center gap-2"><i data-lucide="list" class="w-5 h-5"></i>รายการ Defect ล่าสุด</h2>
+    <div class="ml-auto flex flex-wrap gap-2">
+      {% if g.user.role in ('inspector', 'admin') %}<a href="{{ url_for('defects.new') }}" class="btn btn-primary btn-sm"><i data-lucide="plus"></i>บันทึก Defect</a>{% endif %}
+      <a href="{{ url_for('reports.index') }}" class="btn btn-ghost btn-sm"><i data-lucide="file-text"></i>รายงาน PDF</a>
+      <a href="{{ url_for('reports.index') }}#email" class="btn btn-ghost btn-sm hidden sm:inline-flex"><i data-lucide="mail"></i>ส่งอีเมลรายงาน</a>
+    </div>
+  </div>
+  <form method="get" action="{{ url_for('defects.index') }}" class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 mb-3">
+    <div class="relative">
+      <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 dim"></i>
+      <input class="field !pl-9 !py-2" name="q" placeholder="ค้นหา (เลขที่, พื้นที่, รายละเอียด...)">
+    </div>
+    <button class="btn btn-ghost btn-sm">ค้นหา</button>
+  </form>
+  {{ m.defect_table(latest, g.user.role != 'user') }}
+  <div class="text-right mt-3"><a href="{{ url_for('defects.index') }}" class="text-sm text-sky-300 hover:text-sky-200">ดูทั้งหมด →</a></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const C = DM.colors;
+  const donut = {{ donut|tojson }};
+  const monthly = {{ monthly|tojson }};
+  const total = donut.series.reduce((a, b) => a + b, 0);
+  DM.chart(document.getElementById("donut"), {
+    chart: { type: "donut", height: 260 },
+    series: donut.series, labels: donut.labels,
+    colors: [C.ok, C.warn, C.bad],
+    stroke: { width: 0 },
+    legend: { position: "bottom" },
+    plotOptions: { pie: { donut: { size: "70%", labels: { show: true,
+      value: { fontSize: "30px", fontWeight: 700, color: "#fff", offsetY: 6 },
+      total: { show: true, label: "รายการ", color: "#aab3d6", fontSize: "13px", formatter: () => total } } } } },
+    fill: { type: "gradient", gradient: { shade: "dark", type: "diagonal1", opacityFrom: 1, opacityTo: .85 } },
+    tooltip: { y: { formatter: (v) => `${v} รายการ (${total ? (v * 100 / total).toFixed(1) : 0}%)` } },
+  });
+  DM.chart(document.getElementById("monthly"), {
+    chart: { type: "bar", height: 260 },
+    series: [{ name: "บันทึกใหม่", data: monthly.created }, { name: "ปิดงาน", data: monthly.closed }],
+    xaxis: { categories: monthly.labels, axisBorder: { show: false }, axisTicks: { show: false } },
+    yaxis: { labels: { formatter: (v) => Math.round(v) } },
+    colors: [C.blue, C.ok],
+    plotOptions: { bar: { borderRadius: 7, columnWidth: "52%", dataLabels: { position: "top" } } },
+    dataLabels: { enabled: true, offsetY: -18, style: { fontSize: "11px", colors: ["#c7d2fe"] } },
+    fill: { type: "gradient", gradient: { shade: "dark", type: "vertical", opacityFrom: 1, opacityTo: .55 } },
+    legend: { position: "top", horizontalAlign: "right" },
+  });
+});
+</script>
+{% endblock %}
