@@ -20,6 +20,7 @@ from .utils import SEVERITY
 log = logging.getLogger(__name__)
 
 EMBED_DIM = 768
+HTTP_TIMEOUT_MS = 60_000  # ไม่ให้การเรียก Gemini ค้างไม่มีกำหนด
 MAX_BEFORE = 3
 MAX_AFTER = 4
 VERDICT_TH = {"approved": "ตรวจรับ (ผ่าน)", "rejected": "ตีกลับ (ไม่ผ่าน)"}
@@ -30,7 +31,9 @@ def client():
     ext = current_app.extensions
     if ext.get("gemini_client") is None:
         from google import genai
-        ext["gemini_client"] = genai.Client(api_key=current_app.config["GEMINI_API_KEY"])
+        ext["gemini_client"] = genai.Client(
+            api_key=current_app.config["GEMINI_API_KEY"],
+            http_options=_types().HttpOptions(timeout=HTTP_TIMEOUT_MS))
     return ext["gemini_client"]
 
 
@@ -199,12 +202,19 @@ def _context_text(d, refs):
     return "\n".join(lines)
 
 
+class AIReplyError(ValueError):
+    """ข้อผิดพลาดที่ระบบสร้างเอง (ข้อความภาษาไทย แสดงให้ผู้ใช้ได้)"""
+
+
 def _parse_check(text):
-    data = json.loads(text or "")
+    try:
+        data = json.loads(text or "")
+    except ValueError:
+        raise AIReplyError("AI ตอบไม่อยู่ในรูปแบบที่กำหนด (อาจถูกระงับหรือคำตอบถูกตัด) ลองกดใหม่อีกครั้ง")
     if not isinstance(data, dict):
-        raise ValueError("AI ตอบไม่อยู่ในรูปแบบที่กำหนด")
+        raise AIReplyError("AI ตอบไม่อยู่ในรูปแบบที่กำหนด")
     if data.get("verdict") not in VERDICTS or data.get("confidence") not in CONFIDENCES:
-        raise ValueError("AI ตอบผลไม่อยู่ในรูปแบบที่กำหนด")
+        raise AIReplyError("AI ตอบผลไม่อยู่ในรูปแบบที่กำหนด")
     for key in ("findings", "photo_issues", "similar_cases"):
         if not isinstance(data.get(key), list):
             data[key] = []
@@ -222,8 +232,12 @@ def check(defect, user):
     try:
         after = load_images(d.after_rounds.get(d.round, []), MAX_AFTER)
         if not after:
-            raise LookupError("ไม่พบรูปหลังแก้ไขของรอบล่าสุด")
-        refs = retrieve(d)
+            raise AIReplyError("ไม่พบรูปหลังแก้ไขของรอบล่าสุด")
+        try:  # ค้นเคสคล้ายไม่ได้ ก็ยังตรวจรูปต่อได้
+            refs = retrieve(d)
+        except Exception as e:
+            log.warning("ai: retrieve for defect %s failed: %s", d.id, e)
+            refs = []
         contents = [CHECK_PROMPT, _context_text(d, refs), "รูปก่อนแก้ไข:"]
         contents += load_images(d.before_photos, MAX_BEFORE)
         contents.append(f"รูปหลังแก้ไข (รอบที่ {d.round}):")
@@ -241,8 +255,8 @@ def check(defect, user):
         db.session.rollback()
         log.warning("ai: check defect %s failed: %s", d.id, e)
         chk.status = "error"
-        chk.error = str(e)[:500] if isinstance(e, (LookupError, ValueError)) and str(e) else \
-            f"เรียก AI ไม่สำเร็จ: {str(e)[:400]}"
+        chk.error = str(e)[:500] if isinstance(e, AIReplyError) else \
+            f"เรียก AI ไม่สำเร็จ ({type(e).__name__}) ลองใหม่อีกครั้ง"
     db.session.add(chk)
     db.session.add(DefectLog(defect_id=d.id, user_id=user.id, action="ai_check",
                              note=AI_VERDICT.get(chk.verdict, "ผิดพลาด")))

@@ -366,3 +366,66 @@ def test_admin_ai_page(app_on, tmp_path):
     app_off = make_app(tmp_path / "off", key="")
     _, _, adm_off = users(app_off)
     assert adm_off.get("/admin/ai").status_code == 404
+
+
+# ---------- แก้จากการรีวิว ----------
+def test_client_has_http_timeout(app_on, monkeypatch):
+    import google.genai
+    seen = {}
+
+    class Spy:
+        def __init__(self, **kw):
+            seen.update(kw)
+
+    monkeypatch.setattr(google.genai, "Client", Spy)
+    app_on.extensions.pop("gemini_client", None)
+    with app_on.app_context():
+        ai.client()
+    assert seen["api_key"] == "test-key"
+    assert seen["http_options"].timeout == ai.HTTP_TIMEOUT_MS == 60_000
+
+
+def test_ai_sweep_is_separate_job(app_on):
+    from app.jobs import start_scheduler
+    sched = start_scheduler(app_on)
+    try:
+        assert sched.get_job("overdue") is not None
+        job = sched.get_job("ai_cases")
+        assert job is not None and job.max_instances == 1
+    finally:
+        sched.shutdown(wait=False)
+
+
+def test_scheduler_without_key_has_no_ai_job(app_off):
+    from app.jobs import start_scheduler
+    sched = start_scheduler(app_off)
+    try:
+        assert sched.get_job("ai_cases") is None
+    finally:
+        sched.shutdown(wait=False)
+
+
+def test_ai_check_empty_reply_thai_error(app_on):
+    insb, conb, _ = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    app_on.extensions["gemini_client"] = FakeGemini(reply="")
+    page = insb.post(f"/defects/{did}/ai-check", follow_redirects=True).get_data(as_text=True)
+    with app_on.app_context():
+        chk = AICheck.query.filter_by(defect_id=did).one()
+    assert chk.status == "error" and "Expecting value" not in chk.error
+    assert "AI ตอบไม่อยู่ในรูปแบบ" in chk.error and "Expecting value" not in page
+
+
+def test_ai_check_survives_retrieval_failure(app_on):
+    insb, conb, _ = users(app_on)
+    other = new_defect(app_on, insb, conb, submit=False)
+    did = new_defect(app_on, insb, conb)
+    with app_on.app_context():
+        db.session.add(_done_case(other, 1, unit(0)))
+        db.session.commit()
+    app_on.extensions["gemini_client"] = FakeGemini(reply=GOOD, fail_embed=True)
+    insb.post(f"/defects/{did}/ai-check")
+    with app_on.app_context():
+        chk = AICheck.query.filter_by(defect_id=did).one()
+        assert chk.status == "done" and chk.verdict == "not_fixed"
+        assert json.loads(chk.ref_case_ids) == []

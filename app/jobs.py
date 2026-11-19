@@ -64,7 +64,13 @@ def start_scheduler(app):
             except Exception:
                 db.session.rollback()
                 log.exception("overdue check failed")
-            if app.config.get("AI_ENABLED"):
+
+    sched = BackgroundScheduler(daemon=True)
+    sched.add_job(run, "interval", minutes=app.config["CHECK_INTERVAL_MINUTES"],
+                  id="overdue", max_instances=1, coalesce=True)
+    if app.config.get("AI_ENABLED"):
+        def run_ai():  # แยก job จากตัวออก NCR — Gemini ช้า/ค้างต้องไม่กระทบการออก NCR
+            with app.app_context():
                 try:
                     from .ai import process_pending_cases
                     process_pending_cases()
@@ -72,9 +78,8 @@ def start_scheduler(app):
                     db.session.rollback()
                     log.exception("ai case sweep failed")
 
-    sched = BackgroundScheduler(daemon=True)
-    sched.add_job(run, "interval", minutes=app.config["CHECK_INTERVAL_MINUTES"],
-                  id="overdue", max_instances=1, coalesce=True)
+        sched.add_job(run_ai, "interval", minutes=app.config["CHECK_INTERVAL_MINUTES"],
+                      id="ai_cases", max_instances=1, coalesce=True)
     sched.start()
     # รันรอบแรกหลังเปิดระบบ 5 วินาที
     from datetime import datetime

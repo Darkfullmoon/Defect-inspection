@@ -22,8 +22,8 @@ class _Models:
 
     def embed_content(self, model, contents, config=None):
         self.fake.calls.append(("embed", model, contents))
-        if self.fake.fail:
-            raise RuntimeError("gemini down")
+        if self.fake.fail or self.fake.fail_embed:
+            raise RuntimeError("embed quota")
         vec = self.fake.embed_fn(contents) if self.fake.embed_fn else hash_vec(contents)
         return SimpleNamespace(embeddings=[SimpleNamespace(values=list(vec))])
 
@@ -35,7 +35,8 @@ class _Models:
 
 
 class FakeGemini:
-    def __init__(self, reply="", embed_fn=None, fail=False):
+    def __init__(self, reply="", embed_fn=None, fail=False, fail_embed=False):
+        self.fail_embed = fail_embed
         self.reply = reply
         self.embed_fn = embed_fn
         self.fail = fail
