@@ -6,3 +6,4 @@ uploads/
 dev.db
 .pytest_cache/
 .playwright-mcp/
+.superpowers/

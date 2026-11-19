@@ -8,3 +8,4 @@ pillow-heif==0.18.0
 APScheduler==3.10.4
 python-dotenv==1.0.1
 waitress==3.0.2
+google-genai==3.5.0

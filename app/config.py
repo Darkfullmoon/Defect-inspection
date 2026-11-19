@@ -50,3 +50,10 @@ class Config:
     RUN_SCHEDULER = _bool("RUN_SCHEDULER", "1")
     CHECK_INTERVAL_MINUTES = int(os.getenv("CHECK_INTERVAL_MINUTES", "10"))
     DEFAULT_DUE_DAYS = int(os.getenv("DEFAULT_DUE_DAYS", "7"))
+
+    # AI ตรวจรูป (Gemini) — GEMINI_API_KEY ว่าง = ปิด AI ทั้งหมด
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
+    GEMINI_EMBED_MODEL = (os.getenv("GEMINI_EMBED_MODEL", "gemini-embedding-001").strip()
+                          or "gemini-embedding-001")
+    AI_INLINE = _bool("AI_INLINE", "0")  # 1 = ประมวลผลคลังเคสทันทีแทน background thread (ใช้ตอนทดสอบ)

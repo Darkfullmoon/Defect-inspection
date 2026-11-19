@@ -51,6 +51,7 @@ def create_app(config=None):
     app.config.from_object(Config)
     if config:
         app.config.update(config)
+    app.config["AI_ENABLED"] = bool((app.config.get("GEMINI_API_KEY") or "").strip())
     os.makedirs(app.config["UPLOAD_DIR"], exist_ok=True)
     db.init_app(app)
 
@@ -63,6 +64,7 @@ def create_app(config=None):
     app.jinja_env.globals.update(
         csrf_token=utils.csrf_token, STATUS=utils.STATUS, BUCKETS=utils.BUCKETS,
         SEVERITY=utils.SEVERITY, ROLES=utils.ROLES, LOG_ACTIONS=utils.LOG_ACTIONS,
+        AI_ENABLED=app.config["AI_ENABLED"],
     )
 
     @app.context_processor

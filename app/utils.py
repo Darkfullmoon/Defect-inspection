@@ -31,6 +31,7 @@ LOG_ACTIONS = {
     "rejected": "ตีกลับให้แก้ไขใหม่",
     "ncr": "ออก NCR",
     "reminded": "แจ้งเตือนใกล้ครบกำหนด",
+    "ai_check": "ให้ AI ตรวจรูป",
 }
 
 USERNAME_RE = re.compile(r"^[A-Z]{3}$")

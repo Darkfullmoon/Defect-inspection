@@ -1,7 +1,10 @@
 from collections import OrderedDict
 from datetime import date, datetime
 
+import json
+
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects import mysql
 
 db = SQLAlchemy()
 
@@ -90,6 +93,10 @@ class Defect(db.Model):
                            order_by="DefectLog.id")
     ncr = db.relationship("NCR", backref="defect", uselist=False, cascade="all, delete-orphan",
                           lazy="selectin")
+    ai_checks = db.relationship("AICheck", backref="defect", cascade="all, delete-orphan",
+                                order_by="AICheck.id")
+    ai_cases = db.relationship("AICase", backref="defect", cascade="all, delete-orphan",
+                               order_by="AICase.id")
 
     @property
     def active(self):
@@ -175,3 +182,50 @@ class Notification(db.Model):
     link = db.Column(db.String(255), nullable=False, default="")
     is_read = db.Column(db.Boolean, nullable=False, default=False, index=True)
     created_at = db.Column(db.DateTime, nullable=False, default=now)
+
+
+LongText = db.Text().with_variant(mysql.LONGTEXT(), "mysql")
+
+
+class AICase(db.Model):
+    """คลังเคสสำหรับ RAG: 1 แถวต่อการตัดสิน (ตรวจรับ/ตีกลับ) ของ 1 รอบ"""
+    __tablename__ = "ai_cases"
+    __table_args__ = (db.UniqueConstraint("defect_id", "round", name="uq_ai_case_round"),)
+    id = db.Column(db.Integer, primary_key=True)
+    defect_id = db.Column(db.Integer, db.ForeignKey("defects.id", ondelete="CASCADE"), nullable=False, index=True)
+    round = db.Column(db.Integer, nullable=False)
+    verdict = db.Column(db.String(10), nullable=False)  # approved / rejected
+    inspector_note = db.Column(db.Text, nullable=False, default="")
+    photo_summary = db.Column(db.Text, nullable=False, default="")
+    doc_text = db.Column(db.Text, nullable=False, default="")
+    embedding = db.Column(LongText)
+    embed_model = db.Column(db.String(60), nullable=False, default="")
+    status = db.Column(db.String(8), nullable=False, default="pending", index=True)  # pending / done / error
+    error = db.Column(db.Text, nullable=False, default="")
+    created_at = db.Column(db.DateTime, nullable=False, default=now)
+
+
+class AICheck(db.Model):
+    """ผลการกด "ให้ AI ตรวจรูป" แต่ละครั้ง"""
+    __tablename__ = "ai_checks"
+    id = db.Column(db.Integer, primary_key=True)
+    defect_id = db.Column(db.Integer, db.ForeignKey("defects.id", ondelete="CASCADE"), nullable=False, index=True)
+    round = db.Column(db.Integer, nullable=False)
+    requested_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    status = db.Column(db.String(8), nullable=False)  # done / error
+    verdict = db.Column(db.String(12), nullable=False, default="")
+    result_json = db.Column(db.Text, nullable=False, default="{}")
+    ref_case_ids = db.Column(db.Text, nullable=False, default="[]")
+    model = db.Column(db.String(60), nullable=False, default="")
+    error = db.Column(db.Text, nullable=False, default="")
+    created_at = db.Column(db.DateTime, nullable=False, default=now)
+
+    user = db.relationship("User", lazy="joined")
+
+    @property
+    def result(self):
+        try:
+            r = json.loads(self.result_json or "{}")
+            return r if isinstance(r, dict) else {}
+        except ValueError:
+            return {}
