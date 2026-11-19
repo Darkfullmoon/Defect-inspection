@@ -37,6 +37,7 @@ def client():
         ext["gemini_client"] = genai.Client(
             api_key=current_app.config["GEMINI_API_KEY"],
             http_options=_types().HttpOptions(
+                api_version="v1beta",  # JSON mode (response_schema) ใช้ได้เฉพาะ v1beta
                 timeout=HTTP_TIMEOUT_MS,
                 retry_options=_types().HttpRetryOptions(attempts=3)))  # ลองซ้ำเมื่อโดนจำกัดความถี่ (429) / 5xx
     return ext["gemini_client"]

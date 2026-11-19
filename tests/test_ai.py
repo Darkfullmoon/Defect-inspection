@@ -382,6 +382,8 @@ def test_client_has_http_timeout(app_on, monkeypatch):
         ai.client()
     assert seen["api_key"] == "test-key"
     assert seen["http_options"].timeout == ai.HTTP_TIMEOUT_MS == 60_000
+    # JSON mode (response_schema) ใช้ได้เฉพาะ v1beta — v1 ตอบ 400 INVALID_ARGUMENT
+    assert seen["http_options"].api_version == "v1beta"
 
 
 def test_ai_sweep_is_separate_job(app_on):
