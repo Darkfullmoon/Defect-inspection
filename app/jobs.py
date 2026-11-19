@@ -64,6 +64,13 @@ def start_scheduler(app):
             except Exception:
                 db.session.rollback()
                 log.exception("overdue check failed")
+            if app.config.get("AI_ENABLED"):
+                try:
+                    from .ai import process_pending_cases
+                    process_pending_cases()
+                except Exception:
+                    db.session.rollback()
+                    log.exception("ai case sweep failed")
 
     sched = BackgroundScheduler(daemon=True)
     sched.add_job(run, "interval", minutes=app.config["CHECK_INTERVAL_MINUTES"],

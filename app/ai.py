@@ -9,6 +9,7 @@ import json
 import logging
 import math
 import os
+import threading
 
 from flask import current_app
 from PIL import Image
@@ -247,3 +248,82 @@ def check(defect, user):
                              note=AI_VERDICT.get(chk.verdict, "ผิดพลาด")))
     db.session.commit()
     return chk
+
+
+# ---------- เก็บเคสเข้าคลัง (ตอนตรวจรับ/ตีกลับ) ----------
+def _run_in_ctx(app, fn, *args):
+    with app.app_context():
+        try:
+            fn(*args)
+        except Exception:
+            db.session.rollback()
+            log.exception("ai: background job failed")
+        finally:
+            db.session.remove()
+
+
+def run_background(fn, *args):
+    app = current_app._get_current_object()
+    if app.config.get("AI_INLINE"):
+        return fn(*args)
+    threading.Thread(target=_run_in_ctx, args=(app, fn) + args, daemon=True).start()
+    return None
+
+
+def _upsert_case(defect_id, rnd, verdict, note):
+    c = AICase.query.filter_by(defect_id=defect_id, round=rnd).first()
+    if c is None:
+        c = AICase(defect_id=defect_id, round=rnd)
+        db.session.add(c)
+    c.verdict = verdict
+    c.inspector_note = note or ""
+    c.status = "pending"
+    c.error = ""
+    return c
+
+
+def enqueue_case(defect, rnd, verdict, note):
+    if not current_app.config.get("AI_ENABLED"):
+        return None
+    c = _upsert_case(defect.id, rnd, verdict, note)
+    db.session.commit()
+    run_background(process_case, c.id)
+    return c
+
+
+def process_pending_cases(limit=20):
+    ids = [c.id for c in AICase.query.filter(AICase.status.in_(["pending", "error"]))
+           .order_by(AICase.id).limit(limit)]
+    done = 0
+    for cid in ids:
+        c = process_case(cid)
+        if c is not None and c.status == "done":
+            done += 1
+    return done
+
+
+def backfill_cases():
+    """ไล่ประวัติ: รอบ = จำนวนครั้ง 'submitted' ก่อนหน้า log ตรวจรับ/ตีกลับนั้น คืนจำนวนเคสที่เพิ่มใหม่"""
+    existing = {(c.defect_id, c.round) for c in AICase.query.with_entities(AICase.defect_id, AICase.round)}
+    added = 0
+    for d in Defect.query.order_by(Defect.id):
+        rnd = 0
+        for l in d.logs:
+            if l.action == "submitted":
+                rnd += 1
+            elif l.action in ("approved", "rejected") and rnd and (d.id, rnd) not in existing:
+                if not d.after_rounds.get(rnd):
+                    continue
+                db.session.add(AICase(defect_id=d.id, round=rnd, verdict=l.action,
+                                      inspector_note=l.note or ""))
+                existing.add((d.id, rnd))
+                added += 1
+    db.session.commit()
+    return added
+
+
+def case_stats():
+    rows = db.session.query(AICase.status, db.func.count(AICase.id)).group_by(AICase.status).all()
+    out = {"done": 0, "pending": 0, "error": 0}
+    out.update(dict(rows))
+    return out

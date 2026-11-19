@@ -51,6 +51,7 @@
           {{ navlink('admin.users', 'users', 'ผู้ใช้งาน', 'admin.user') }}
           {{ navlink('admin.pairing', 'link-2', 'จับคู่ผู้ตรวจ') }}
           {{ navlink('admin.areas', 'map-pin', 'พื้นที่ / หน่วยงาน') }}
+          {% if AI_ENABLED %}{{ navlink('admin.ai_cases', 'sparkles', 'คลังเคส AI') }}{% endif %}
         {% endif %}
         {{ navlink('main.profile', 'user-cog', 'โปรไฟล์ของฉัน') }}
       </nav>

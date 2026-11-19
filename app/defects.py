@@ -262,6 +262,13 @@ def review(defect_id):
     else:
         abort(400)
     db.session.commit()
+    if current_app.config["AI_ENABLED"]:
+        try:  # เก็บเคสเข้าคลัง AI — ล้มเหลวก็ไม่กระทบการตรวจรับ
+            from . import ai
+            ai.enqueue_case(d, d.round, "approved" if decision == "approve" else "rejected", note)
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception("ai: enqueue case failed")
     return redirect(url_for("defects.detail", defect_id=d.id))
 
 

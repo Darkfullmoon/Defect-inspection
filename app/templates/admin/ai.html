@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}คลังเคส AI{% endblock %}
+{% block heading %}คลังเคส AI{% endblock %}
+{% block content %}
+<div class="max-w-[720px] mx-auto space-y-4">
+  <div class="glass p-4 lg:p-5 reveal space-y-3">
+    <p class="text-sm muted">ทุกครั้งที่ผู้ตรวจ ตรวจรับ / ตีกลับ ระบบจะสรุปเคสเก็บไว้ให้ AI ใช้อ้างอิงเมื่อกด "ให้ AI ตรวจรูป" เคสที่ผิดพลาดจะถูกลองใหม่อัตโนมัติทุก {{ config.CHECK_INTERVAL_MINUTES }} นาที</p>
+    <div class="grid grid-cols-3 gap-3 text-center">
+      <div class="glass-soft p-3"><div class="text-2xl font-semibold text-emerald-300">{{ stats.done }}</div><div class="text-xs dim">พร้อมใช้</div></div>
+      <div class="glass-soft p-3"><div class="text-2xl font-semibold text-sky-300">{{ stats.pending }}</div><div class="text-xs dim">รอประมวลผล</div></div>
+      <div class="glass-soft p-3"><div class="text-2xl font-semibold text-rose-300">{{ stats.error }}</div><div class="text-xs dim">ผิดพลาด</div></div>
+    </div>
+  </div>
+  <form method="post" class="glass p-4 lg:p-5 reveal space-y-3" data-delay="80" data-busy="กำลังเพิ่มเข้าคิว…">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="backfill">
+    <p class="text-sm muted">สร้างคลังจากงานที่ตรวจรับ / ตีกลับไปแล้วก่อนเปิดใช้ AI (ทำครั้งแรกครั้งเดียว กดซ้ำได้ เคสที่มีแล้วจะไม่ซ้ำ)</p>
+    <button class="btn btn-primary" type="submit"><i data-lucide="database"></i>สร้างคลังเคสย้อนหลัง</button>
+  </form>
+</div>
+{% endblock %}

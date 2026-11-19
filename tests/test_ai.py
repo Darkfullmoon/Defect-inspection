@@ -274,3 +274,95 @@ def test_ai_check_missing_after_photo(app_on):
         chk = AICheck.query.filter_by(defect_id=did).one()
         assert chk.status == "error" and chk.error == "ไม่พบรูปหลังแก้ไขของรอบล่าสุด"
     assert fake.count("generate") == 0
+
+
+# ---------- Task 4: เก็บเคสตอนตรวจ, เก็บกวาด, สร้างคลังย้อนหลัง ----------
+def review(insb, did, decision, note=""):
+    r = insb.post(f"/defects/{did}/review", {"decision": decision, "note": note})
+    assert r.status_code == 302
+
+
+def test_review_creates_case(app_on):
+    insb, conb, _ = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    app_on.extensions["gemini_client"] = FakeGemini(reply="ยังมีรอย")
+    review(insb, did, "reject", "สียังไม่เรียบ")
+    submit_fix(conb, did)
+    review(insb, did, "approve", "ผ่าน")
+    with app_on.app_context():
+        cases = {c.round: c for c in AICase.query.filter_by(defect_id=did)}
+        assert cases[1].verdict == "rejected" and cases[1].status == "done"
+        assert cases[1].inspector_note == "สียังไม่เรียบ"
+        assert cases[2].verdict == "approved" and cases[2].status == "done"
+
+
+def test_review_without_key_no_case(app_off):
+    insb, conb, _ = users(app_off)
+    did = new_defect(app_off, insb, conb)
+    review(insb, did, "approve")
+    with app_off.app_context():
+        assert AICase.query.count() == 0
+        assert db.session.get(Defect, did).status == "closed"
+
+
+def test_enqueue_same_round_twice(app_on):
+    insb, conb, _ = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    app_on.extensions["gemini_client"] = FakeGemini(reply="x")
+    with app_on.app_context():
+        d = db.session.get(Defect, did)
+        ai.enqueue_case(d, 1, "rejected", "a")
+        ai.enqueue_case(d, 1, "approved", "b")
+        rows = AICase.query.filter_by(defect_id=did).all()
+        assert len(rows) == 1 and rows[0].verdict == "approved" and rows[0].inspector_note == "b"
+
+
+def test_review_survives_ai_failure(app_on):
+    insb, conb, _ = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    app_on.extensions["gemini_client"] = FakeGemini(fail=True)
+    review(insb, did, "approve", "ผ่าน")
+    with app_on.app_context():
+        assert db.session.get(Defect, did).status == "closed"
+        assert AICase.query.filter_by(defect_id=did).one().status == "error"
+        # งานเก็บกวาดลองใหม่แล้วสำเร็จ
+        app_on.extensions["gemini_client"] = FakeGemini(reply="ok")
+        assert ai.process_pending_cases() == 1
+        assert AICase.query.filter_by(defect_id=did).one().status == "done"
+
+
+def test_backfill_round_mapping(tmp_path):
+    app = make_app(tmp_path, key="")
+    try:
+        insb, conb, _ = users(app)
+        did = new_defect(app, insb, conb)
+        review(insb, did, "reject", "ไม่ผ่าน")
+        submit_fix(conb, did)
+        review(insb, did, "approve", "ผ่าน")
+        app.config["AI_ENABLED"] = True
+        app.extensions["gemini_client"] = FakeGemini(reply="x")
+        with app.app_context():
+            assert AICase.query.count() == 0
+            assert ai.backfill_cases() == 2
+            got = {c.round: (c.verdict, c.inspector_note) for c in AICase.query.filter_by(defect_id=did)}
+            assert got == {1: ("rejected", "ไม่ผ่าน"), 2: ("approved", "ผ่าน")}
+            assert ai.backfill_cases() == 0
+    finally:
+        with app.app_context():
+            db.session.remove()
+            db.drop_all()
+
+
+def test_admin_ai_page(app_on, tmp_path):
+    insb, conb, admb = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    with app_on.app_context():
+        db.session.add(AICase(defect_id=did, round=1, verdict="rejected", status="error"))
+        db.session.commit()
+    page = admb.get("/admin/ai")
+    assert page.status_code == 200 and "คลังเคส AI" in page.get_data(as_text=True)
+    assert insb.get("/admin/ai").status_code == 403
+    (tmp_path / "off").mkdir()
+    app_off = make_app(tmp_path / "off", key="")
+    _, _, adm_off = users(app_off)
+    assert adm_off.get("/admin/ai").status_code == 404

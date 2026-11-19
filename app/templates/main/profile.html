@@ -15,6 +15,7 @@
   <div class="grid grid-cols-3 sm:grid-cols-4 gap-3 lg:hidden reveal">
     {% set links = [('main.tracking', 'clock-3', 'ติดตามงาน'), ('ncr.index', 'file-warning', 'NCR'), ('reports.index', 'file-text', 'รายงาน / PDF'), ('main.stats', 'chart-column-increasing', 'สถิติ')] %}
     {% if g.user.role == 'admin' %}{% set links = links + [('admin.users', 'users', 'ผู้ใช้งาน'), ('admin.pairing', 'link-2', 'จับคู่ผู้ตรวจ'), ('admin.areas', 'map-pin', 'พื้นที่')] %}{% endif %}
+    {% if g.user.role == 'admin' and AI_ENABLED %}{% set links = links + [('admin.ai_cases', 'sparkles', 'คลังเคส AI')] %}{% endif %}
     {% for ep_, icon, label in links %}
       <a href="{{ url_for(ep_) }}" class="glass-soft flex flex-col items-center gap-2 py-4 text-sm hover:bg-white/10"><i data-lucide="{{ icon }}" class="w-6 h-6 text-sky-300"></i>{{ label }}</a>
     {% endfor %}

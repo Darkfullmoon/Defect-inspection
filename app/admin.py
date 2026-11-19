@@ -139,6 +139,19 @@ def pairing():
     return render_template("admin/pairing.html", inspectors=inspectors, users=users, current=current)
 
 
+@bp.route("/ai", methods=["GET", "POST"])
+def ai_cases():
+    if not current_app.config["AI_ENABLED"]:
+        abort(404)
+    from . import ai
+    if request.method == "POST" and request.form.get("action") == "backfill":
+        n = ai.backfill_cases()
+        ai.run_background(ai.process_pending_cases, 1000)
+        flash(f"เพิ่มเคสเข้าคิว {n} เคส ระบบกำลังประมวลผลเบื้องหลัง", "success")
+        return redirect(url_for("admin.ai_cases"))
+    return render_template("admin/ai.html", stats=ai.case_stats())
+
+
 @bp.route("/areas", methods=["GET", "POST"])
 def areas():
     if request.method == "POST":
