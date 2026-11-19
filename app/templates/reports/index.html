@@ -83,8 +83,14 @@
 </div>
 {% endblock %}
 {% block head %}
+{% include "_thsarabun.html" %}
 <style>
 @media print {
+  .print-area, .print-area * { font-family: "THSarabunPSK", sans-serif !important; }
+  .print-area { font-size: 16pt; line-height: 1.25; }
+  .print-area .tbl th, .print-area .tbl td { font-size: 14pt !important; padding: 3px 6px !important; }
+  .print-area .badge { font-size: 13pt !important; }
+  .print-area h1, .print-area h2 { font-size: 20pt !important; }
   .print-area { background: #fff !important; color: #111 !important; backdrop-filter: none !important; }
   .print-area .muted, .print-area .dim { color: #555 !important; }
   .print-area .glass-soft { border: 1px solid #ddd !important; background: #fff !important; }
