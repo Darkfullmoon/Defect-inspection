@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0d1433">
+  <meta name="theme-color" content="#ffffff">
   <title>{% block title %}Defect Management{% endblock %} · Home</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,11 +11,10 @@
   <script src="https://cdn.tailwindcss.com/3.4.16"></script>
   <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['"IBM Plex Sans Thai"', 'sans-serif'] } } } }</script>
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}?v=2">
   {% block head %}{% endblock %}
 </head>
 <body class="antialiased">
-<div class="aurora no-print" aria-hidden="true"><span></span><span></span><span></span></div>
 
 {% set ep = request.endpoint or '' %}
 {% macro navlink(endpoint, icon, label, prefix=None) -%}
@@ -29,8 +28,8 @@
   <aside class="hidden lg:flex fixed inset-y-0 left-0 w-[268px] p-4 z-30">
     <div class="glass flex flex-col w-full p-4">
       <a href="{{ url_for('main.dashboard') }}" class="flex items-center gap-3 px-2 pb-5 pt-1">
-        <div class="w-11 h-11 rounded-2xl grid place-items-center" style="background:linear-gradient(135deg,#fbbf24,#f59e0b);box-shadow:0 0 22px rgba(251,191,36,.55)">
-          <i data-lucide="hard-hat" class="w-6 h-6 text-slate-900"></i>
+        <div class="w-11 h-11 rounded-2xl grid place-items-center" style="background:#1d4ed8">
+          <i data-lucide="hard-hat" class="w-6 h-6" style="color:#fff"></i>
         </div>
         <div class="leading-tight">
           <div class="font-semibold text-[15px]">Defect Management</div>
@@ -68,7 +67,7 @@
       <div class="glass flex items-center gap-3 px-4 py-2.5 lg:py-3" style="border-radius:18px">
         {% block back %}{% endblock %}
         <a href="{{ url_for('main.dashboard') }}" class="lg:hidden flex items-center gap-2">
-          <div class="w-9 h-9 rounded-xl grid place-items-center" style="background:linear-gradient(135deg,#fbbf24,#f59e0b)"><i data-lucide="hard-hat" class="w-5 h-5 text-slate-900"></i></div>
+          <div class="w-9 h-9 rounded-xl grid place-items-center" style="background:#1d4ed8"><i data-lucide="hard-hat" class="w-5 h-5" style="color:#fff"></i></div>
         </a>
         <div class="min-w-0">
           <div class="font-semibold truncate text-[15px] lg:text-lg">{% block heading %}Defect Management{% endblock %}</div>
@@ -77,9 +76,9 @@
           <details class="dropdown relative">
             <summary class="icon-btn relative cursor-pointer" aria-label="การแจ้งเตือน">
               <i data-lucide="bell"></i>
-              {% if unread_count %}<span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-[11px] font-semibold grid place-items-center shadow-[0_0_12px_rgba(244,63,94,.8)]">{{ unread_count if unread_count < 100 else '99+' }}</span>{% endif %}
+              {% if unread_count %}<span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-[11px] font-semibold grid place-items-center">{{ unread_count if unread_count < 100 else '99+' }}</span>{% endif %}
             </summary>
-            <div class="glass absolute right-0 mt-2 w-[320px] max-w-[88vw] p-2 z-50" style="background:rgba(16,23,58,.92)">
+            <div class="glass absolute right-0 mt-2 w-[320px] max-w-[88vw] p-2 z-50" style="box-shadow:0 10px 30px -8px rgba(15,23,42,.25)">
               <div class="flex items-center justify-between px-3 py-2">
                 <div class="font-semibold">การแจ้งเตือน</div>
                 <a href="{{ url_for('main.notifications') }}" class="text-xs text-sky-300">ดูทั้งหมด</a>
@@ -98,7 +97,7 @@
             </div>
           </details>
           <a href="{{ url_for('main.profile') }}" class="flex items-center gap-2 pl-2 pr-1 py-1 rounded-xl hover:bg-white/5">
-            <div class="w-9 h-9 rounded-full grid place-items-center text-sm font-semibold" style="background:linear-gradient(135deg,#5b8cff,#8b5cf6)">{{ g.user.username }}</div>
+            <div class="w-9 h-9 rounded-full grid place-items-center text-sm font-semibold" style="background:#1d4ed8;color:#fff">{{ g.user.username }}</div>
             <div class="hidden md:block leading-tight text-left">
               <div class="text-sm font-medium max-w-[160px] truncate">{{ g.user.username }}</div>
               <div class="text-[11px] dim">{{ ROLES[g.user.role] }}</div>
@@ -114,8 +113,8 @@
     <div class="{{ 'max-w-[1500px] mx-auto' if not bare }}">
       {% with msgs = get_flashed_messages(with_categories=true) %}
         {% for cat, m in msgs %}
-          {% set c = {'success': 'border-emerald-400/40 bg-emerald-400/10 text-emerald-100', 'error': 'border-rose-400/40 bg-rose-400/10 text-rose-100'}.get(cat, 'border-sky-400/40 bg-sky-400/10 text-sky-100') %}
-          <div data-flash class="flash no-print mb-4 px-4 py-3 rounded-2xl border {{ c }} backdrop-blur flex gap-3 items-start">
+          {% set c = {'success': 'border-emerald-300 bg-emerald-50 text-emerald-800', 'error': 'border-rose-300 bg-rose-50 text-rose-800'}.get(cat, 'border-sky-300 bg-sky-50 text-sky-800') %}
+          <div data-flash class="flash no-print mb-4 px-4 py-3 rounded-xl border {{ c }} flex gap-3 items-start">
             <i data-lucide="{{ {'success': 'circle-check', 'error': 'circle-alert'}.get(cat, 'info') }}" class="w-5 h-5 mt-0.5 shrink-0"></i>
             <div>{{ m }}</div>
           </div>
@@ -128,11 +127,11 @@
 {% if g.user and not bare %}
   {# ---------- แถบล่าง (มือถือ) ---------- #}
   <nav class="bottom-nav lg:hidden fixed bottom-0 inset-x-0 z-30 px-3" style="padding-bottom:max(.6rem, env(safe-area-inset-bottom))">
-    <div class="glass grid grid-cols-5 items-end px-1" style="border-radius:22px;background:rgba(14,20,52,.78)">
+    <div class="glass grid grid-cols-5 items-end px-1" style="border-radius:18px;box-shadow:0 -2px 12px rgba(15,23,42,.08)">
       <a href="{{ url_for('main.dashboard') }}" class="{{ 'active' if ep == 'main.dashboard' }}"><i data-lucide="house"></i>หน้าหลัก</a>
       <a href="{{ url_for('defects.index') }}" class="{{ 'active' if ep.startswith('defects.') and ep != 'defects.new' }}"><i data-lucide="clipboard-list"></i>รายการ</a>
       {% if g.user.role in ('inspector', 'admin') %}
-        <a href="{{ url_for('defects.new') }}" class="!text-white"><span class="fab"><i data-lucide="plus"></i></span><span>บันทึก</span></a>
+        <a href="{{ url_for('defects.new') }}" class="!text-[#1d4ed8] font-semibold"><span class="fab"><i data-lucide="plus"></i></span><span>บันทึก</span></a>
       {% else %}
         <a href="{{ url_for('main.tracking') }}" class="{{ 'active' if ep == 'main.tracking' }}"><span class="fab"><i data-lucide="clock-3"></i></span><span>งานของฉัน</span></a>
       {% endif %}
@@ -145,7 +144,7 @@
 </div>
 
 <dialog id="lightbox" class="lightbox"><img alt="รูปขยาย"></dialog>
-<script src="{{ url_for('static', filename='js/app.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=2"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

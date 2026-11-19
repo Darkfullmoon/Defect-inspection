@@ -45,7 +45,7 @@
   {% if n.status == 'closed' %}
     <p>ตรวจรับและปิด NCR เมื่อ {{ n.closed_at|thdatetime }}</p>
   {% else %}
-    <p>☐ ผ่าน ปิด NCR &nbsp;&nbsp;&nbsp; ☐ ไม่ผ่าน ให้ดำเนินการแก้ไขใหม่</p>
+    <p><span class="cb"></span> ผ่าน ปิด NCR &nbsp;&nbsp;&nbsp; <span class="cb"></span> ไม่ผ่าน ให้ดำเนินการแก้ไขใหม่</p>
   {% endif %}
 </div>
 

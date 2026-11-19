@@ -70,3 +70,5 @@ def test_print_pages_use_th_sarabun(app):
         assert "/static/fonts/THSarabunPSK.ttf" in body, p
         assert re.search(r'font-family:\s*"THSarabunPSK"', body), p
         assert "fonts.googleapis.com/css2?family=Sarabun" not in body, p
+        # สัญลักษณ์ที่ TH SarabunPSK ไม่มี จะไปใช้ฟอนต์อื่นของเครื่อง (หน้าตาต่างกันแต่ละเครื่อง)
+        assert "☐" not in body, p

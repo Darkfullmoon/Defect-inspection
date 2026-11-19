@@ -112,9 +112,9 @@ document.addEventListener("DOMContentLoaded", () => {
     stroke: { width: 0 },
     legend: { position: "bottom" },
     plotOptions: { pie: { donut: { size: "70%", labels: { show: true,
-      value: { fontSize: "30px", fontWeight: 700, color: "#fff", offsetY: 6 },
-      total: { show: true, label: "รายการ", color: "#aab3d6", fontSize: "13px", formatter: () => total } } } } },
-    fill: { type: "gradient", gradient: { shade: "dark", type: "diagonal1", opacityFrom: 1, opacityTo: .85 } },
+      value: { fontSize: "30px", fontWeight: 700, color: "#0f172a", offsetY: 6 },
+      total: { show: true, label: "รายการ", color: "#475569", fontSize: "13px", formatter: () => total } } } } },
+    fill: { type: "solid" },
     tooltip: { y: { formatter: (v) => `${v} รายการ (${total ? (v * 100 / total).toFixed(1) : 0}%)` } },
   });
   DM.chart(document.getElementById("monthly"), {
@@ -124,8 +124,8 @@ document.addEventListener("DOMContentLoaded", () => {
     yaxis: { labels: { formatter: (v) => Math.round(v) } },
     colors: [C.blue, C.ok],
     plotOptions: { bar: { borderRadius: 7, columnWidth: "52%", dataLabels: { position: "top" } } },
-    dataLabels: { enabled: true, offsetY: -18, style: { fontSize: "11px", colors: ["#c7d2fe"] } },
-    fill: { type: "gradient", gradient: { shade: "dark", type: "vertical", opacityFrom: 1, opacityTo: .55 } },
+    dataLabels: { enabled: true, offsetY: -18, style: { fontSize: "11px", colors: ["#1e3a8a"] } },
+    fill: { type: "solid" },
     legend: { position: "top", horizontalAlign: "right" },
   });
 });

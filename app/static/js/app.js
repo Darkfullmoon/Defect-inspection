@@ -185,16 +185,16 @@
 
   // ---------- กราฟ (ApexCharts) ----------
   const FONT = '"IBM Plex Sans Thai", sans-serif';
-  DM.colors = { ok: "#34d399", warn: "#fbbf24", bad: "#f87171", blue: "#5b8cff", violet: "#8b5cf6", cyan: "#22d3ee", orange: "#fb923c" };
+  DM.colors = { ok: "#059669", warn: "#d97706", bad: "#dc2626", blue: "#1d4ed8", violet: "#6d28d9", cyan: "#0891b2", orange: "#ea580c" };
   DM.chartBase = function () {
     return {
-      chart: { fontFamily: FONT, foreColor: "#aab3d6", background: "transparent", toolbar: { show: false },
+      chart: { fontFamily: FONT, foreColor: "#475569", background: "transparent", toolbar: { show: false },
         animations: { enabled: !reduce, speed: 900 }, parentHeightOffset: 0 },
-      theme: { mode: "dark" },
-      grid: { borderColor: "rgba(255,255,255,.07)", strokeDashArray: 4 },
+      theme: { mode: "light" },
+      grid: { borderColor: "#e2e8f0", strokeDashArray: 4 },
       dataLabels: { enabled: false },
-      legend: { labels: { colors: "#aab3d6" }, fontSize: "13px" },
-      tooltip: { theme: "dark" },
+      legend: { labels: { colors: "#475569" }, fontSize: "13px" },
+      tooltip: { theme: "light" },
     };
   };
   DM.chart = function (el, opts) {

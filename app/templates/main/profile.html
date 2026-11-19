@@ -4,7 +4,7 @@
 {% block content %}
 <div class="max-w-[820px] mx-auto space-y-4 lg:space-y-5">
   <div class="glass p-5 lg:p-6 reveal flex items-center gap-4">
-    <div class="w-16 h-16 rounded-2xl grid place-items-center text-xl font-bold" style="background:linear-gradient(135deg,#5b8cff,#8b5cf6);box-shadow:0 0 30px rgba(91,140,255,.5)">{{ g.user.username }}</div>
+    <div class="w-16 h-16 rounded-2xl grid place-items-center text-xl font-bold" style="background:#1d4ed8;color:#fff">{{ g.user.username }}</div>
     <div>
       <div class="text-lg font-semibold">{{ g.user.username }}</div>
       <div class="muted text-sm">{{ ROLES[g.user.role] }} · ชื่อผู้ใช้ {{ g.user.username }}</div>

@@ -17,13 +17,13 @@
   <div class="overflow-x-auto">
     <table class="tbl">
       <thead><tr>
-        <th class="sticky left-0 bg-[#121a3d]/80 backdrop-blur">ผู้รับผิดชอบ \ ผู้ตรวจ</th>
+        <th class="sticky left-0 bg-white">ผู้รับผิดชอบ \ ผู้ตรวจ</th>
         {% for i in inspectors %}<th class="text-center"><div class="font-semibold text-violet-200">{{ i.username }}</div></th>{% endfor %}
       </tr></thead>
       <tbody>
       {% for u in users %}
         <tr class="{{ 'opacity-50' if not u.active }}">
-          <td class="sticky left-0 bg-[#121a3d]/80 backdrop-blur whitespace-nowrap"><b class="text-sky-200">{{ u.username }}</b></td>
+          <td class="sticky left-0 bg-white whitespace-nowrap"><b class="text-sky-200">{{ u.username }}</b></td>
           {% for i in inspectors %}
             <td class="text-center"><input type="checkbox" name="pair" value="{{ i.id }}-{{ u.id }}" class="w-5 h-5 accent-sky-400 cursor-pointer" {{ 'checked' if (i.id, u.id) in current }}></td>
           {% endfor %}
