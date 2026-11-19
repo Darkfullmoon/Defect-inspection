@@ -1,4 +1,4 @@
-"""การแจ้งเตือน: กระดิ่งในระบบ + อีเมล (Gmail SMTP / Mailpit ตาม .env)"""
+"""การแจ้งเตือนบนเว็บ (กระดิ่ง) + ส่งอีเมลรายงาน (ใช้เฉพาะเมนูส่งรายงาน ตาม SMTP ใน .env)"""
 import logging
 import smtplib
 import threading
@@ -6,7 +6,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr, parseaddr
 
-from flask import current_app, render_template
+from flask import current_app
 
 from .models import Notification, db
 
@@ -51,13 +51,8 @@ def send_mail(to, subject, html, wait=False):
     return True
 
 
-def notify(user, title, body="", link="", kind="info", email=True):
-    """สร้างการแจ้งเตือนในกระดิ่ง และส่งอีเมลถ้าผู้ใช้มีอีเมล (ต้องอยู่ใน app context)"""
+def notify(user, title, body="", link="", kind="info"):
+    """สร้างการแจ้งเตือนบนเว็บ (กระดิ่ง) — ไม่ส่งอีเมล (ต้องอยู่ใน app context)"""
     if user is None:
         return
     db.session.add(Notification(user_id=user.id, kind=kind, title=title, body=body, link=link))
-    if email and user.email:
-        base = current_app.config["APP_BASE_URL"]
-        html = render_template("email/notify.html", user=user, title=title, body=body,
-                               url=base + link if link else base, kind=kind)
-        send_mail(user.email, f"[Defect] {title}", html)
