@@ -6,7 +6,7 @@
 
 <div class="flex flex-wrap items-end justify-between gap-3 mb-5 reveal">
   <div>
-    <h1 class="text-2xl lg:text-[28px] font-semibold">สวัสดี {{ g.user.full_name or g.user.username }}</h1>
+    <h1 class="text-2xl lg:text-[28px] font-semibold">สวัสดี {{ g.user.username }}</h1>
     <p class="muted text-sm mt-0.5">
       {% if g.user.role == 'user' %}งานที่ได้รับมอบหมายให้คุณแก้ไข{% elif g.user.role == 'inspector' %}Defect ที่คุณเปิดและติดตาม{% else %}ภาพรวม Defect ทั้งระบบ{% endif %}
       · ช่วงเวลา: <span class="text-white">{{ month_title }}</span>

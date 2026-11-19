@@ -172,13 +172,10 @@ def profile():
     u = g.user
     if request.method == "POST":
         email = (request.form.get("email") or "").strip()
-        name = (request.form.get("full_name") or "").strip()
         if email and not EMAIL_RE.match(email):
             flash("รูปแบบอีเมลไม่ถูกต้อง", "error")
         else:
             u.email = email
-            if name:
-                u.full_name = name
             db.session.commit()
             flash("บันทึกข้อมูลแล้ว", "success")
         return redirect(url_for("main.profile"))

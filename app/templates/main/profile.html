@@ -6,7 +6,7 @@
   <div class="glass p-5 lg:p-6 reveal flex items-center gap-4">
     <div class="w-16 h-16 rounded-2xl grid place-items-center text-xl font-bold" style="background:linear-gradient(135deg,#5b8cff,#8b5cf6);box-shadow:0 0 30px rgba(91,140,255,.5)">{{ g.user.username }}</div>
     <div>
-      <div class="text-lg font-semibold">{{ g.user.full_name or g.user.username }}</div>
+      <div class="text-lg font-semibold">{{ g.user.username }}</div>
       <div class="muted text-sm">{{ ROLES[g.user.role] }} · ชื่อผู้ใช้ {{ g.user.username }}</div>
     </div>
   </div>
@@ -26,7 +26,6 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <h2 class="font-semibold">ข้อมูลส่วนตัว</h2>
     <div class="grid sm:grid-cols-2 gap-4">
-      <div><label class="label">ชื่อ-นามสกุล</label><input name="full_name" class="field" value="{{ g.user.full_name }}"></div>
       <div><label class="label">อีเมล</label><input name="email" type="email" class="field" value="{{ g.user.email }}"></div>
     </div>
     <div class="flex flex-wrap gap-2">

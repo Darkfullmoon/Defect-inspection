@@ -50,8 +50,8 @@
 </div>
 
 <div class="sign avoid">
-  <div><div class="line"></div>ผู้ออก NCR<br><span class="muted">({{ d.inspector.full_name or d.inspector.username }})</span><br>วันที่ ....../....../......</div>
-  <div><div class="line"></div>ผู้รับ NCR / ผู้รับผิดชอบ<br><span class="muted">({{ d.assignee.full_name or d.assignee.username }})</span><br>วันที่ ....../....../......</div>
+  <div><div class="line"></div>ผู้ออก NCR<br><span class="muted">({{ d.inspector.username }})</span><br>วันที่ ....../....../......</div>
+  <div><div class="line"></div>ผู้รับ NCR / ผู้รับผิดชอบ<br><span class="muted">({{ d.assignee.username }})</span><br>วันที่ ....../....../......</div>
   <div><div class="line"></div>ผู้อนุมัติปิด NCR<br><span class="muted">(...................................)</span><br>วันที่ ....../....../......</div>
 </div>
 {% endblock %}

@@ -27,7 +27,6 @@ def users():
 def _validate(form, user=None):
     errors = []
     username = (form.get("username") or "").strip().upper()
-    full_name = (form.get("full_name") or "").strip()
     email = (form.get("email") or "").strip()
     role = form.get("role") or ""
     if user is None:
@@ -37,13 +36,11 @@ def _validate(form, user=None):
             errors.append("ชื่อ ADM สงวนไว้สำหรับผู้ดูแลระบบ")
         elif User.query.filter_by(username=username).first():
             errors.append(f"ชื่อผู้ใช้ {username} มีอยู่แล้ว")
-    if not full_name:
-        errors.append("กรุณากรอกชื่อ-นามสกุล")
     if email and not EMAIL_RE.match(email):
         errors.append("รูปแบบอีเมลไม่ถูกต้อง")
     if role not in ("inspector", "user"):
         errors.append("กรุณาเลือกประเภทผู้ใช้")
-    return {"username": username, "full_name": full_name, "email": email, "role": role}, errors
+    return {"username": username, "email": email, "role": role}, errors
 
 
 @bp.route("/users/new", methods=["GET", "POST"])
@@ -52,7 +49,7 @@ def user_new():
     if request.method == "POST":
         data, errors = _validate(request.form)
         if not errors:
-            u = User(username=data["username"], full_name=data["full_name"], email=data["email"],
+            u = User(username=data["username"], email=data["email"],
                      role=data["role"], must_change_password=True,
                      password_hash=generate_password_hash(current_app.config["DEFAULT_PASSWORD"]))
             db.session.add(u)
@@ -83,12 +80,12 @@ def user_edit(uid):
             if data["role"] != u.role:
                 u.team = []
                 u.inspectors = []
-            u.full_name, u.email, u.role = data["full_name"], data["email"], data["role"]
+            u.email, u.role = data["email"], data["role"]
             db.session.commit()
             flash("บันทึกแล้ว", "success")
             return redirect(url_for("admin.users"))
     form = request.form if request.method == "POST" else {
-        "username": u.username, "full_name": u.full_name, "email": u.email, "role": u.role}
+        "username": u.username, "email": u.email, "role": u.role}
     return render_template("admin/user_form.html", u=u, errors=errors, form=form, roles=ROLES)
 
 

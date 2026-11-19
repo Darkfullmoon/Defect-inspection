@@ -46,7 +46,7 @@ class User(db.Model):
 
     @property
     def display(self):
-        return f"{self.username} · {self.full_name}" if self.full_name else self.username
+        return self.username  # ใช้ชื่อย่อ 3 ตัวอย่างเดียว (ไม่แสดงชื่อ-นามสกุล)
 
     @property
     def initials(self):

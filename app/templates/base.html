@@ -100,7 +100,7 @@
           <a href="{{ url_for('main.profile') }}" class="flex items-center gap-2 pl-2 pr-1 py-1 rounded-xl hover:bg-white/5">
             <div class="w-9 h-9 rounded-full grid place-items-center text-sm font-semibold" style="background:linear-gradient(135deg,#5b8cff,#8b5cf6)">{{ g.user.username }}</div>
             <div class="hidden md:block leading-tight text-left">
-              <div class="text-sm font-medium max-w-[160px] truncate">{{ g.user.full_name or g.user.username }}</div>
+              <div class="text-sm font-medium max-w-[160px] truncate">{{ g.user.username }}</div>
               <div class="text-[11px] dim">{{ ROLES[g.user.role] }}</div>
             </div>
           </a>

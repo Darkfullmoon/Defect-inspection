@@ -17,12 +17,11 @@
   </div>
   <div class="overflow-x-auto">
     <table class="tbl">
-      <thead><tr><th>ชื่อผู้ใช้</th><th>ชื่อ-นามสกุล</th><th>ประเภท</th><th>อีเมล</th><th>จับคู่กับ</th><th>สถานะ</th><th class="text-right">จัดการ</th></tr></thead>
+      <thead><tr><th>ชื่อผู้ใช้</th><th>ประเภท</th><th>อีเมล</th><th>จับคู่กับ</th><th>สถานะ</th><th class="text-right">จัดการ</th></tr></thead>
       <tbody>
       {% for u in items %}
         <tr class="{{ 'opacity-50' if not u.active }}">
           <td><span class="inline-grid place-items-center w-11 h-8 rounded-lg font-semibold tracking-wider {{ 'bg-violet-500/20 text-violet-200' if u.role == 'inspector' else 'bg-sky-500/20 text-sky-200' }}">{{ u.username }}</span></td>
-          <td>{{ u.full_name }}</td>
           <td class="whitespace-nowrap">{{ ROLES[u.role] }}</td>
           <td class="text-sm muted">{{ u.email or '-' }}</td>
           <td class="text-sm">

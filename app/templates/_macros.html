@@ -64,7 +64,7 @@
           <td class="whitespace-nowrap">{{ d.created_at|thdate }}</td>
           <td class="whitespace-nowrap">{{ d.area.name }}<div class="text-xs dim">{{ d.location }}</div></td>
           <td><div class="flex items-center gap-3 min-w-[220px]">{{ thumb(d) }}<span class="line-clamp-2">{{ d.detail }}</span></div></td>
-          {% if show_people %}<td class="whitespace-nowrap">{{ d.assignee.username }}<div class="text-xs dim max-w-[140px] truncate">{{ d.assignee.full_name }}</div></td>{% endif %}
+          {% if show_people %}<td class="whitespace-nowrap">{{ d.assignee.username }}</td>{% endif %}
           <td class="whitespace-nowrap">{{ due_text(d) }}</td>
           <td>{{ status_badge(d) }}{{ sub_status(d) }}</td>
           <td class="text-right whitespace-nowrap">

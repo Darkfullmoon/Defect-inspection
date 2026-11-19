@@ -47,8 +47,8 @@
 </div>
 
 <div class="sign avoid">
-  <div><div class="line"></div>ผู้ตรวจ<br><span class="muted">({{ d.inspector.full_name or d.inspector.username }})</span></div>
-  <div><div class="line"></div>ผู้รับผิดชอบแก้ไข<br><span class="muted">({{ d.assignee.full_name or d.assignee.username }})</span></div>
+  <div><div class="line"></div>ผู้ตรวจ<br><span class="muted">({{ d.inspector.username }})</span></div>
+  <div><div class="line"></div>ผู้รับผิดชอบแก้ไข<br><span class="muted">({{ d.assignee.username }})</span></div>
   <div><div class="line"></div>ผู้อนุมัติ<br><span class="muted">(...................................)</span></div>
 </div>
 {% endblock %}

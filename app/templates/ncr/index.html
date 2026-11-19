@@ -25,7 +25,7 @@
           <td class="whitespace-nowrap">{{ n.issued_at|thdate }}</td>
           <td class="whitespace-nowrap"><a class="code-link" href="{{ url_for('defects.detail', defect_id=d.id) }}">{{ d.code }}</a><div class="text-xs dim">{{ d.area.name }} / {{ d.location }}</div></td>
           <td><div class="flex items-center gap-3 min-w-[200px]">{{ m.thumb(d) }}<span class="line-clamp-2">{{ d.detail }}</span></div></td>
-          <td class="whitespace-nowrap">{{ d.assignee.username }}<div class="text-xs dim">{{ d.assignee.full_name }}</div></td>
+          <td class="whitespace-nowrap">{{ d.assignee.username }}</td>
           <td class="whitespace-nowrap">{{ n.due_date_at_issue|thdate }}</td>
           <td>{% if n.status == 'open' %}<span class="badge b-ncr">ยังไม่ปิด</span><div class="text-[11px] dim mt-1">{{ STATUS[d.status] }}</div>{% else %}<span class="badge b-closed">ปิดแล้ว</span><div class="text-[11px] dim mt-1">{{ n.closed_at|thdate }}</div>{% endif %}</td>
           <td class="text-right"><a class="btn btn-ghost btn-sm" href="{{ url_for('ncr.view', ncr_id=n.id) }}" target="_blank"><i data-lucide="file-down"></i>PDF</a></td>
