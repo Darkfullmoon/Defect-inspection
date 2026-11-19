@@ -265,6 +265,21 @@ def review(defect_id):
     return redirect(url_for("defects.detail", defect_id=d.id))
 
 
+@bp.route("/<int:defect_id>/ai-check", methods=["POST"])
+def ai_check(defect_id):
+    """ให้ AI ตรวจรูปหลังแก้ (เฉพาะผู้ตรวจของงาน / admin) — เป็นความเห็นประกอบ ไม่เปลี่ยนสถานะงาน"""
+    d = get_defect_or_404(defect_id)
+    if not current_app.config["AI_ENABLED"]:
+        abort(404)
+    if not can_manage(d) or d.status != "submitted":
+        abort(403)
+    from . import ai
+    chk = ai.check(d, g.user)
+    if chk.status == "error":
+        flash(f"AI ตรวจไม่สำเร็จ: {chk.error}", "error")
+    return redirect(url_for("defects.detail", defect_id=d.id) + "#ai")
+
+
 @bp.route("/<int:defect_id>/delete", methods=["POST"])
 @roles("admin")
 def delete(defect_id):

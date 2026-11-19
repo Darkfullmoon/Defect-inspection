@@ -204,3 +204,73 @@ def test_retrieve_empty(app_on):
     app_on.extensions["gemini_client"] = FakeGemini()
     with app_on.app_context():
         assert ai.retrieve(db.session.get(Defect, did)) == []
+
+
+# ---------- Task 3: ปุ่มตรวจ + การ์ด ----------
+GOOD = json.dumps({"verdict": "not_fixed", "confidence": "medium", "summary": "ยังเห็นรอยร้าวมุมซ้าย",
+                   "findings": ["รอยร้าวยังอยู่"], "photo_issues": [],
+                   "similar_cases": [{"code": "DEF-X", "why": "คล้ายกัน"}]})
+
+
+def test_ai_check_inspector(app_on):
+    insb, conb, _ = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    app_on.extensions["gemini_client"] = FakeGemini(reply=GOOD)
+    r = insb.post(f"/defects/{did}/ai-check")
+    assert r.status_code == 302 and r.headers["Location"].endswith(f"/defects/{did}#ai")
+    with app_on.app_context():
+        chk = AICheck.query.filter_by(defect_id=did).one()
+        assert chk.status == "done" and chk.verdict == "not_fixed" and chk.round == 1
+        assert chk.result["summary"] == "ยังเห็นรอยร้าวมุมซ้าย"
+        assert db.session.get(Defect, did).status == "submitted"
+        assert DefectLog.query.filter_by(defect_id=did, action="ai_check").count() == 1
+    page = insb.get(f"/defects/{did}").get_data(as_text=True)
+    assert "น่าจะยังไม่เสร็จ" in page and "ผู้ตรวจเป็นผู้ตัดสิน" in page and "ยังเห็นรอยร้าวมุมซ้าย" in page
+
+
+def test_ai_check_permissions(app_on):
+    insb, conb, admb = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    app_on.extensions["gemini_client"] = FakeGemini(reply=GOOD)
+    assert conb.post(f"/defects/{did}/ai-check").status_code == 403
+    assert admb.post(f"/defects/{did}/ai-check").status_code == 302
+    page = conb.get(f"/defects/{did}").get_data(as_text=True)
+    assert "ความเห็น AI" not in page and "ให้ AI ตรวจรูป" not in page and "น่าจะยังไม่เสร็จ" not in page
+    printed = conb.get(f"/defects/{did}/print").get_data(as_text=True)
+    assert "ให้ AI ตรวจรูป" not in printed and "น่าจะยังไม่เสร็จ" not in printed
+    assert "ให้ AI ตรวจรูป" in insb.get(f"/defects/{did}").get_data(as_text=True)
+    open_did = new_defect(app_on, insb, conb, submit=False)
+    assert insb.post(f"/defects/{open_did}/ai-check").status_code == 403
+
+
+def test_ai_check_disabled(app_off):
+    insb, conb, _ = users(app_off)
+    did = new_defect(app_off, insb, conb)
+    assert insb.post(f"/defects/{did}/ai-check").status_code == 404
+    assert "ให้ AI ตรวจรูป" not in insb.get(f"/defects/{did}").get_data(as_text=True)
+
+
+def test_ai_check_bad_json(app_on):
+    insb, conb, _ = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    for reply in ("not json", json.dumps({"verdict": "maybe", "confidence": "high"})):
+        app_on.extensions["gemini_client"] = FakeGemini(reply=reply)
+        assert insb.post(f"/defects/{did}/ai-check").status_code == 302
+    with app_on.app_context():
+        assert [c.status for c in AICheck.query.filter_by(defect_id=did)] == ["error", "error"]
+    assert insb.get(f"/defects/{did}").status_code == 200
+
+
+def test_ai_check_missing_after_photo(app_on):
+    insb, conb, _ = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    with app_on.app_context():
+        for p in db.session.get(Defect, did).after_rounds[1]:
+            os.remove(os.path.join(app_on.config["UPLOAD_DIR"], p.path))
+    fake = FakeGemini(reply=GOOD)
+    app_on.extensions["gemini_client"] = fake
+    assert insb.post(f"/defects/{did}/ai-check").status_code == 302
+    with app_on.app_context():
+        chk = AICheck.query.filter_by(defect_id=did).one()
+        assert chk.status == "error" and chk.error == "ไม่พบรูปหลังแก้ไขของรอบล่าสุด"
+    assert fake.count("generate") == 0

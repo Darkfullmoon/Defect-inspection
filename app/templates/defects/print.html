@@ -39,7 +39,7 @@
   <table class="list">
     <thead><tr><th style="width:24%">วันเวลา</th><th style="width:22%">การดำเนินการ</th><th style="width:10%">โดย</th><th>หมายเหตุ</th></tr></thead>
     <tbody>
-    {% for l in d.logs %}
+    {% for l in d.logs if l.action != 'ai_check' %}
       <tr><td>{{ l.created_at|thdatetime }}</td><td>{{ LOG_ACTIONS.get(l.action, l.action) }}</td><td>{{ l.user.username if l.user else 'ระบบ' }}</td><td style="white-space:pre-line">{{ l.note }}</td></tr>
     {% endfor %}
     </tbody>

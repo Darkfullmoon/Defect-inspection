@@ -21,6 +21,7 @@ STATUS = {
     "closed": "แก้ไขแล้ว",
 }
 BUCKETS = {"progress": "กำลังดำเนินการ", "closed": "แก้ไขแล้ว", "ncr": "เกินกำหนด (NCR)"}
+AI_VERDICT = {"looks_fixed": "ดูเรียบร้อย", "not_fixed": "น่าจะยังไม่เสร็จ", "unclear": "ไม่แน่ใจ / รูปไม่พอ"}
 SEVERITY = {"low": "ต่ำ", "medium": "ปานกลาง", "high": "สูง"}
 ROLES = {"admin": "ผู้ดูแลระบบ", "inspector": "ผู้ตรวจ", "user": "ผู้รับผิดชอบแก้ไข"}
 LOG_ACTIONS = {

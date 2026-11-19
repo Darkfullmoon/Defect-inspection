@@ -64,7 +64,7 @@ def create_app(config=None):
     app.jinja_env.globals.update(
         csrf_token=utils.csrf_token, STATUS=utils.STATUS, BUCKETS=utils.BUCKETS,
         SEVERITY=utils.SEVERITY, ROLES=utils.ROLES, LOG_ACTIONS=utils.LOG_ACTIONS,
-        AI_ENABLED=app.config["AI_ENABLED"],
+        AI_ENABLED=app.config["AI_ENABLED"], AI_VERDICT=utils.AI_VERDICT,
     )
 
     @app.context_processor
