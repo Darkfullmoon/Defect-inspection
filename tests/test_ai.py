@@ -28,7 +28,6 @@ def make_app(tmp_path, key=""):
         "SQLALCHEMY_DATABASE_URI": uri,
         "UPLOAD_DIR": str(tmp_path / "up"),
         "RUN_SCHEDULER": False,
-        "SMTP_HOST": "",
         "TESTING": True,
         "GEMINI_API_KEY": key,
         "AI_INLINE": True,

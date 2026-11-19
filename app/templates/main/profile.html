@@ -38,7 +38,7 @@
   <form method="post" class="glass p-5 lg:p-6 space-y-4 reveal">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <h2 class="font-semibold">อีเมลผู้ดูแลระบบ</h2>
-    <input name="email" type="email" class="field" value="{{ g.user.email }}" placeholder="ใช้เป็นค่าเริ่มต้นตอนส่งรายงาน">
+    <input name="email" type="email" class="field" value="{{ g.user.email }}" placeholder="ไม่บังคับ">
     <p class="text-sm muted">รหัสผ่านของ ADM กำหนดในไฟล์ <code>.env</code> (ADMIN_PASSWORD) แก้แล้ว restart ระบบ</p>
     <button class="btn btn-primary"><i data-lucide="save"></i>บันทึก</button>
   </form>

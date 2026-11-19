@@ -83,7 +83,6 @@
     <div class="ml-auto flex flex-wrap gap-2">
       {% if g.user.role in ('inspector', 'admin') %}<a href="{{ url_for('defects.new') }}" class="btn btn-primary btn-sm"><i data-lucide="plus"></i>บันทึก Defect</a>{% endif %}
       <a href="{{ url_for('reports.index') }}" class="btn btn-ghost btn-sm"><i data-lucide="file-text"></i>รายงาน PDF</a>
-      <a href="{{ url_for('reports.index') }}#email" class="btn btn-ghost btn-sm hidden sm:inline-flex"><i data-lucide="mail"></i>ส่งอีเมลรายงาน</a>
     </div>
   </div>
   <form method="get" action="{{ url_for('defects.index') }}" class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 mb-3">

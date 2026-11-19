@@ -41,13 +41,6 @@
       </div>
     </form>
 
-    <form id="email" method="post" action="{{ url_for('reports.email') }}" class="glass p-5 space-y-3 reveal" data-delay="100" data-busy="กำลังส่ง…">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      {% for k in ('q', 'status', 'area', 'severity', 'person', 'from', 'to') %}{% if a.get(k) %}<input type="hidden" name="{{ k }}" value="{{ a.get(k) }}">{% endif %}{% endfor %}
-      <h2 class="font-semibold flex items-center gap-2"><i data-lucide="mail" class="w-5 h-5"></i>ส่งอีเมลรายงาน</h2>
-      <input name="to" class="field !py-2" value="{{ default_email }}" placeholder="อีเมลผู้รับ (หลายคนคั่นด้วย ,)" required>
-      <button class="btn btn-ghost w-full"><i data-lucide="send"></i>ส่งรายงานนี้ทางอีเมล</button>
-    </form>
   </div>
 
   <div class="glass p-5 lg:p-6 print-area reveal" data-delay="60">

@@ -1,12 +1,10 @@
 from collections import Counter as Tally
 
-from flask import (Blueprint, current_app, flash, g, redirect, render_template, request,
-                   url_for)
+from flask import Blueprint, render_template, request
 
 from .defects import filtered_query
 from .models import Area, Defect, User, db, now
-from .notify import send_mail
-from .utils import EMAIL_RE, thdatetime
+from .utils import thdatetime
 
 bp = Blueprint("reports", __name__, url_prefix="/reports")
 
@@ -50,25 +48,5 @@ def index():
                            areas=Area.query.order_by(Area.name).all(), people=people,
                            summary=filter_summary(request.args),
                            print_mode=request.args.get("print") == "1",
-                           default_email=g.user.email, now_text=thdatetime(now()))
+                           now_text=thdatetime(now()))
 
-
-@bp.route("/email", methods=["POST"])
-def email():
-    to = (request.form.get("to") or "").strip()
-    args = request.form
-    back = url_for("reports.index", **{k: args.get(k) for k in FILTER_KEYS if args.get(k)})
-    recipients = [t.strip() for t in to.replace(";", ",").split(",") if t.strip()]
-    if not recipients or not all(EMAIL_RE.match(r) for r in recipients):
-        flash("กรุณากรอกอีเมลผู้รับให้ถูกต้อง (หลายคนคั่นด้วย ,)", "error")
-        return redirect(back)
-    items, counts = build(args)
-    html = render_template("email/report.html", items=items, counts=counts, summary=filter_summary(args),
-                           base=current_app.config["APP_BASE_URL"], sender=g.user)
-    if not current_app.config["SMTP_HOST"]:
-        flash("ยังไม่ได้ตั้งค่า SMTP ใน .env จึงส่งอีเมลไม่ได้", "error")
-        return redirect(back)
-    for r in recipients:
-        send_mail(r, f"[Defect] รายงาน Defect {len(items)} รายการ", html)
-    flash(f"ส่งรายงานไปที่ {', '.join(recipients)} แล้ว", "success")
-    return redirect(back)

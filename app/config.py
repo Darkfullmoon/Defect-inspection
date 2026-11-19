@@ -39,14 +39,7 @@ class Config:
     # รหัสกลางสำหรับผู้ใช้ใหม่ / หลังรีเซ็ต
     DEFAULT_PASSWORD = os.getenv("DEFAULT_PASSWORD", "Test*123")
 
-    SMTP_HOST = os.getenv("SMTP_HOST", "")
-    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-    SMTP_USER = os.getenv("SMTP_USER", "")
-    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
-    SMTP_FROM = os.getenv("SMTP_FROM", "Defect System <no-reply@home.local>")
-    SMTP_TLS = _bool("SMTP_TLS", "1")
 
-    APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:5100").rstrip("/")
     RUN_SCHEDULER = _bool("RUN_SCHEDULER", "1")
     CHECK_INTERVAL_MINUTES = int(os.getenv("CHECK_INTERVAL_MINUTES", "10"))
     DEFAULT_DUE_DAYS = int(os.getenv("DEFAULT_DUE_DAYS", "7"))

@@ -27,7 +27,6 @@ def app(tmp_path):
         "SQLALCHEMY_DATABASE_URI": uri,
         "UPLOAD_DIR": str(tmp_path / "up"),
         "RUN_SCHEDULER": False,
-        "SMTP_HOST": "",
         "TESTING": True,
     })
     yield app
@@ -182,9 +181,10 @@ def test_full_flow(app):
     adm.post(f"/admin/users/{con_id}/toggle")
     assert Browser(app).login("CON", "Test*123").status_code == 200
 
-    # ส่งอีเมลรายงานเมื่อยังไม่ตั้ง SMTP -> แจ้งเตือน ไม่พัง
-    r = insb.post("/reports/email", {"to": "boss@x.com"}, follow_redirects=True)
-    assert "SMTP" in r.get_data(as_text=True)
+    # ไม่มีระบบอีเมลแล้ว: ไม่มีหน้าส่งอีเมลรายงาน / ไม่มีปุ่ม
+    assert insb.post("/reports/email", {"to": "boss@x.com"}).status_code == 404
+    for p in ("/reports/", "/"):
+        assert "ส่งอีเมลรายงาน" not in insb.get(p).get_data(as_text=True)
 
 
 def test_reminder(app):
