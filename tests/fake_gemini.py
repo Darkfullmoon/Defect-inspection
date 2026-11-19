@@ -29,6 +29,8 @@ class _Models:
 
     def generate_content(self, model, contents, config=None):
         self.fake.calls.append(("generate", model, contents))
+        if self.fake.on_generate:
+            self.fake.on_generate()
         if self.fake.fail:
             raise RuntimeError("gemini down")
         return SimpleNamespace(text=self.fake.reply)
@@ -37,6 +39,7 @@ class _Models:
 class FakeGemini:
     def __init__(self, reply="", embed_fn=None, fail=False, fail_embed=False):
         self.fail_embed = fail_embed
+        self.on_generate = None
         self.reply = reply
         self.embed_fn = embed_fn
         self.fail = fail

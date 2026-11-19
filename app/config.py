@@ -56,4 +56,5 @@ class Config:
     GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
     GEMINI_EMBED_MODEL = (os.getenv("GEMINI_EMBED_MODEL", "gemini-embedding-001").strip()
                           or "gemini-embedding-001")
+    AI_BACKFILL_DELAY_SEC = float(os.getenv("AI_BACKFILL_DELAY_SEC", "4"))  # พักระหว่างเคสตอนสร้างคลังย้อนหลัง
     AI_INLINE = _bool("AI_INLINE", "0")  # 1 = ประมวลผลคลังเคสทันทีแทน background thread (ใช้ตอนทดสอบ)

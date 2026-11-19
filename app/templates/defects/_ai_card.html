@@ -1,0 +1,32 @@
+    {# ---------- ความเห็น AI (เฉพาะผู้ตรวจของงาน / admin) ---------- #}
+    {% if AI_ENABLED and manage and d.after_rounds %}
+    {% set cur = d.ai_checks|selectattr('round', 'equalto', d.round)|list %}
+    {% set chk = (cur|last) if cur else (d.ai_checks|last) %}
+    <div id="ai" class="glass p-5 lg:p-6 reveal space-y-3" style="border-color:rgba(167,139,250,.4)">
+      <h2 class="font-semibold flex items-center gap-2"><i data-lucide="sparkles" class="w-5 h-5 text-violet-300"></i>ความเห็น AI <span class="text-xs font-normal dim">(ใช้ประกอบ — ผู้ตรวจเป็นผู้ตัดสิน)</span></h2>
+      {% if chk %}
+        {% if chk.status == 'done' %}
+          {% set r = chk.result %}
+          {% set tone = {'looks_fixed': 'bg-emerald-400/10 border-emerald-400/30 text-emerald-200', 'not_fixed': 'bg-orange-400/10 border-orange-400/30 text-orange-200'}.get(chk.verdict, 'bg-slate-400/10 border-slate-400/30 text-slate-200') %}
+          <div class="px-4 py-3 rounded-xl border {{ tone }}">
+            <div class="font-semibold">{{ AI_VERDICT.get(chk.verdict, chk.verdict) }} <span class="text-xs font-normal opacity-80">· ความมั่นใจ: {{ {'high': 'สูง', 'medium': 'กลาง', 'low': 'ต่ำ'}.get(r.confidence, '-') }}</span></div>
+            {% if r.summary %}<div class="text-sm mt-1">{{ r.summary }}</div>{% endif %}
+          </div>
+          {% if r.findings %}<ul class="text-sm muted list-disc pl-5 space-y-1">{% for f in r.findings %}<li>{{ f }}</li>{% endfor %}</ul>{% endif %}
+          {% if r.photo_issues %}<div class="text-sm text-amber-200"><b>เรื่องรูป:</b> {{ r.photo_issues|join(' · ') }}</div>{% endif %}
+          {% if r.similar_cases %}<div class="text-sm muted"><b>เคสคล้าย:</b> {% for c in r.similar_cases %}{{ c.code }}{% if c.why %} ({{ c.why }}){% endif %}{% if not loop.last %} · {% endif %}{% endfor %}</div>{% endif %}
+        {% else %}
+          <div class="px-4 py-3 rounded-xl border bg-rose-400/10 border-rose-400/30 text-rose-200 text-sm">AI ตรวจไม่สำเร็จ: {{ chk.error }}</div>
+        {% endif %}
+        <div class="text-xs dim">ตรวจเมื่อ {{ chk.created_at|thdatetime }}{% if chk.user %} โดย {{ chk.user.username }}{% endif %} · รอบที่ {{ chk.round }}{% if chk.round != d.round %} (รอบเก่า){% endif %}</div>
+      {% else %}
+        <p class="text-sm muted">ยังไม่ได้ให้ AI ตรวจรูปของงานนี้</p>
+      {% endif %}
+      {% if d.status == 'submitted' %}
+      <form method="post" action="{{ url_for('defects.ai_check', defect_id=d.id) }}" data-ai-check data-busy-text="AI กำลังตรวจ… (ประมาณ 5–20 วินาที)">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm" type="submit"><i data-lucide="sparkles"></i>{{ 'ให้ AI ตรวจรูปอีกครั้ง' if chk and chk.round == d.round else 'ให้ AI ตรวจรูป' }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}

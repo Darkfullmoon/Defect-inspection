@@ -9,9 +9,12 @@ import json
 import logging
 import math
 import os
+import random
 import threading
+import time
 
 from flask import current_app
+from sqlalchemy.exc import IntegrityError
 from PIL import Image
 
 from .models import AICase, Defect, DefectLog, db
@@ -33,7 +36,9 @@ def client():
         from google import genai
         ext["gemini_client"] = genai.Client(
             api_key=current_app.config["GEMINI_API_KEY"],
-            http_options=_types().HttpOptions(timeout=HTTP_TIMEOUT_MS))
+            http_options=_types().HttpOptions(
+                timeout=HTTP_TIMEOUT_MS,
+                retry_options=_types().HttpRetryOptions(attempts=3)))  # ลองซ้ำเมื่อโดนจำกัดความถี่ (429) / 5xx
     return ext["gemini_client"]
 
 
@@ -102,29 +107,63 @@ CASE_PROMPT = ("คุณเป็นผู้ช่วยผู้ตรวจ�
                "ไม่ต้องตัดสินว่าผ่านหรือไม่ผ่าน")
 
 
+def claim_case(case_id):
+    """จองเคสแบบ atomic (pending/error -> working) กันสองเธรดส่งเคสเดียวกันให้ Gemini ซ้ำ"""
+    r = db.session.execute(AICase.__table__.update()
+                           .where(AICase.id == case_id, AICase.status.in_(["pending", "error"]))
+                           .values(status="working"))
+    db.session.commit()
+    return r.rowcount == 1
+
+
+def _vec_cache():
+    return current_app.extensions.setdefault("ai_vec_cache", {})
+
+
+def reset_stuck_cases():
+    """เคสที่ค้างสถานะ working ตอนเปิดโปรแกรม = โปรแกรมเคยปิดกลางคัน คืนเข้าคิวใหม่"""
+    n = AICase.query.filter_by(status="working").update({"status": "pending"})
+    db.session.commit()
+    return n
+
+
 def process_case(case_id):
+    if not claim_case(case_id):  # ไม่มีแล้ว / เสร็จแล้ว / มีเธรดอื่นกำลังทำ
+        return db.session.get(AICase, case_id)
     case = db.session.get(AICase, case_id)
     if case is None:
         return None
     try:
         d = case.defect
-        after = d.after_rounds.get(case.round, [])
+        after = load_images(d.after_rounds.get(case.round, []), MAX_AFTER)
+        if not after:  # ไม่มีรูปหลังแก้ให้ AI ดู — ข้ามถาวร ไม่ลองซ้ำ
+            case.status = "skip"
+            case.error = "ไม่พบไฟล์รูปหลังแก้ไขของรอบนี้"
+            db.session.commit()
+            return case
         contents = [CASE_PROMPT, defect_text(d), "รูปก่อนแก้ไข:"]
         contents += load_images(d.before_photos, MAX_BEFORE)
         contents.append(f"รูปหลังแก้ไข (รอบที่ {case.round}):")
-        contents += load_images(after, MAX_AFTER)
+        contents += after
         r = client().models.generate_content(model=current_app.config["GEMINI_MODEL"], contents=contents)
-        case.photo_summary = (r.text or "").strip()
+        summary = (r.text or "").strip()
+        if not summary:
+            raise AIReplyError("AI ไม่ได้บรรยายรูป (อาจถูกระงับ)")
+        case.photo_summary = summary
         case.doc_text = case_doc_text(case)
-        case.embedding = json.dumps(embed(case.doc_text, "RETRIEVAL_DOCUMENT"))
+        vec = embed(case.doc_text, "RETRIEVAL_DOCUMENT")
+        case.embedding = json.dumps(vec)
         case.embed_model = current_app.config["GEMINI_EMBED_MODEL"]
         case.status = "done"
         case.error = ""
         db.session.commit()
+        _vec_cache()[case_id] = vec
     except Exception as e:
         db.session.rollback()
         log.warning("ai: case %s failed: %s", case_id, e)
         case = db.session.get(AICase, case_id)
+        if case is None:  # Defect ถูกลบระหว่างประมวลผล
+            return None
         case.status = "error"
         case.error = str(e)[:500]
         db.session.commit()
@@ -139,22 +178,33 @@ def query_text(d):
     return f"{defect_text(d)}\nโน้ตผู้แก้ไข: {note}"
 
 
+def _parse_vec(text):
+    try:
+        v = json.loads(text or "[]")
+    except ValueError:
+        return None
+    return [float(x) for x in v] if isinstance(v, list) else None
+
+
 def retrieve(defect, k=4):
+    """คืน [(AICase, score)] เรียงจากคล้ายมากไปน้อย — เวกเตอร์ถูก cache ในหน่วยความจำ ไม่อ่าน LONGTEXT ทุกครั้ง"""
     model = current_app.config["GEMINI_EMBED_MODEL"]
-    rows = (AICase.query.filter(AICase.status == "done", AICase.embed_model == model,
-                                AICase.defect_id != defect.id).all())
-    if not rows:
+    ids = [i for (i,) in db.session.query(AICase.id).filter(
+        AICase.status == "done", AICase.embed_model == model, AICase.defect_id != defect.id)]
+    if not ids:
         return []
+    cache = _vec_cache()
+    missing = [i for i in ids if i not in cache]
+    for start in range(0, len(missing), 500):
+        chunk = missing[start:start + 500]
+        for i, text in db.session.query(AICase.id, AICase.embedding).filter(AICase.id.in_(chunk)):
+            cache[i] = _parse_vec(text)
     q = embed(query_text(defect), "RETRIEVAL_QUERY")
-    scored = []
-    for c in rows:
-        try:
-            vec = json.loads(c.embedding or "[]")
-        except ValueError:
-            continue
-        scored.append((c, cosine(q, vec)))
+    scored = [(i, cosine(q, cache[i])) for i in ids if cache.get(i) and len(cache[i]) == len(q)]
     scored.sort(key=lambda t: t[1], reverse=True)
-    return scored[:k]
+    top = scored[:k]
+    rows = {c.id: c for c in AICase.query.filter(AICase.id.in_([i for i, _ in top]))} if top else {}
+    return [(rows[i], s) for i, s in top if i in rows]
 
 
 # ---------- ตรวจรูปหลังแก้ (กดปุ่ม) ----------
@@ -300,25 +350,42 @@ def enqueue_case(defect, rnd, verdict, note):
     if not current_app.config.get("AI_ENABLED"):
         return None
     c = _upsert_case(defect.id, rnd, verdict, note)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:  # อีกเธรด (สร้างคลังย้อนหลัง) เพิ่มแถวเดียวกันไปก่อน
+        db.session.rollback()
+        c = _upsert_case(defect.id, rnd, verdict, note)
+        db.session.commit()
+    _vec_cache().pop(c.id, None)
     run_background(process_case, c.id)
     return c
 
 
-def process_pending_cases(limit=20):
-    ids = [c.id for c in AICase.query.filter(AICase.status.in_(["pending", "error"]))
+def process_pending_cases(limit=20, delay=0):
+    """ทำเคสรอคิวก่อน แล้วสุ่มเคสผิดพลาดมาลองใหม่ (กันเคสเสียถาวรบังคิว) delay = วินาทีพักระหว่างเคส"""
+    ids = [i for (i,) in db.session.query(AICase.id).filter(AICase.status == "pending")
            .order_by(AICase.id).limit(limit)]
+    room = limit - len(ids)
+    if room > 0:
+        errs = [i for (i,) in db.session.query(AICase.id).filter(AICase.status == "error").order_by(AICase.id)]
+        ids += random.sample(errs, min(room, len(errs)))
     done = 0
     for cid in ids:
         c = process_case(cid)
         if c is not None and c.status == "done":
             done += 1
+        if delay:
+            time.sleep(delay)
     return done
+
+
+def _existing_keys():
+    return {(c.defect_id, c.round) for c in AICase.query.with_entities(AICase.defect_id, AICase.round)}
 
 
 def backfill_cases():
     """ไล่ประวัติ: รอบ = จำนวนครั้ง 'submitted' ก่อนหน้า log ตรวจรับ/ตีกลับนั้น คืนจำนวนเคสที่เพิ่มใหม่"""
-    existing = {(c.defect_id, c.round) for c in AICase.query.with_entities(AICase.defect_id, AICase.round)}
+    existing = _existing_keys()
     added = 0
     for d in Defect.query.order_by(Defect.id):
         rnd = 0
@@ -328,16 +395,19 @@ def backfill_cases():
             elif l.action in ("approved", "rejected") and rnd and (d.id, rnd) not in existing:
                 if not d.after_rounds.get(rnd):
                     continue
+                existing.add((d.id, rnd))
                 db.session.add(AICase(defect_id=d.id, round=rnd, verdict=l.action,
                                       inspector_note=l.note or ""))
-                existing.add((d.id, rnd))
-                added += 1
-    db.session.commit()
+                try:
+                    db.session.commit()
+                    added += 1
+                except IntegrityError:  # มีแถวนี้แล้วจากเธรดอื่น
+                    db.session.rollback()
     return added
 
 
 def case_stats():
     rows = db.session.query(AICase.status, db.func.count(AICase.id)).group_by(AICase.status).all()
-    out = {"done": 0, "pending": 0, "error": 0}
+    out = {"done": 0, "pending": 0, "working": 0, "error": 0, "skip": 0}
     out.update(dict(rows))
     return out

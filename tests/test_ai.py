@@ -429,3 +429,186 @@ def test_ai_check_survives_retrieval_failure(app_on):
         chk = AICheck.query.filter_by(defect_id=did).one()
         assert chk.status == "done" and chk.verdict == "not_fixed"
         assert json.loads(chk.ref_case_ids) == []
+
+
+# ---------- แก้เรื่องเล็กจากการรีวิว ----------
+def _case(app, did, rnd=1, status="pending", verdict="rejected"):
+    with app.app_context():
+        c = AICase(defect_id=did, round=rnd, verdict=verdict, status=status)
+        db.session.add(c)
+        db.session.commit()
+        return c.id
+
+
+def test_claimed_case_not_processed_twice(app_on):
+    insb, conb, _ = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    cid = _case(app_on, did)
+    fake = FakeGemini(reply="x")
+    app_on.extensions["gemini_client"] = fake
+    with app_on.app_context():
+        assert ai.claim_case(cid) is True
+        assert ai.claim_case(cid) is False
+        ai.process_case(cid)  # มีคนอื่นกำลังทำอยู่ -> ไม่เรียก Gemini ซ้ำ
+        assert fake.count("generate") == 0
+        assert db.session.get(AICase, cid).status == "working"
+
+
+def test_startup_resets_stuck_working_cases(app_on):
+    insb, conb, _ = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    cid = _case(app_on, did, status="working")
+    app2 = create_app({"SQLALCHEMY_DATABASE_URI": app_on.config["SQLALCHEMY_DATABASE_URI"],
+                       "UPLOAD_DIR": app_on.config["UPLOAD_DIR"], "RUN_SCHEDULER": False,
+                       "TESTING": True, "GEMINI_API_KEY": "k", "AI_INLINE": True})
+    with app2.app_context():
+        assert db.session.get(AICase, cid).status == "pending"
+
+
+def test_sweep_processes_pending_before_errors(app_on):
+    insb, conb, _ = users(app_on)
+    d1 = new_defect(app_on, insb, conb)
+    d2 = new_defect(app_on, insb, conb)
+    errs = [_case(app_on, d1, rnd=r, status="error") for r in range(1, 4)]
+    pend = _case(app_on, d2, rnd=1, status="pending")
+    app_on.extensions["gemini_client"] = FakeGemini(reply="x")
+    with app_on.app_context():
+        ai.process_pending_cases(limit=1)
+        assert db.session.get(AICase, pend).status == "done"
+        assert all(db.session.get(AICase, e).status == "error" for e in errs)
+
+
+def test_sweep_rotates_error_cases(app_on, monkeypatch):
+    insb, conb, _ = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    ids = [_case(app_on, did, rnd=r, status="error") for r in range(1, 6)]
+    picked = []
+    monkeypatch.setattr(ai, "process_case", lambda cid: picked.append(cid))
+    monkeypatch.setattr(ai.random, "sample", lambda pop, k: list(pop)[-k:])
+    with app_on.app_context():
+        ai.process_pending_cases(limit=2)
+    assert picked == ids[-2:]  # สุ่มเลือก ไม่ใช่เอาแถว id ต่ำสุดเสมอ
+
+
+def test_backfill_throttles_and_client_retries(app_on, monkeypatch):
+    insb, conb, admb = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    _case(app_on, did, rnd=1)
+    sleeps = []
+    monkeypatch.setattr(ai.time, "sleep", lambda s: sleeps.append(s))
+    app_on.extensions["gemini_client"] = FakeGemini(reply="x")
+    with app_on.app_context():
+        ai.process_pending_cases(limit=10, delay=4)
+    assert sleeps == [4]
+    assert app_on.config["AI_BACKFILL_DELAY_SEC"] == 4
+
+    import google.genai
+    seen = {}
+    monkeypatch.setattr(google.genai, "Client", lambda **kw: seen.update(kw))
+    app_on.extensions.pop("gemini_client", None)
+    with app_on.app_context():
+        ai.client()
+    assert seen["http_options"].retry_options.attempts == 3
+
+
+def test_process_case_defect_deleted_midway(app_on):
+    insb, conb, _ = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    cid = _case(app_on, did)
+    fake = FakeGemini(fail=True)
+
+    def vanish():
+        with db.engine.begin() as conn:
+            conn.execute(AICase.__table__.delete().where(AICase.id == cid))
+
+    fake.on_generate = vanish
+    app_on.extensions["gemini_client"] = fake
+    with app_on.app_context():
+        assert ai.process_case(cid) is None
+
+
+def test_process_case_missing_after_files_skipped(app_on):
+    insb, conb, _ = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    with app_on.app_context():
+        for p in db.session.get(Defect, did).after_rounds[1]:
+            os.remove(os.path.join(app_on.config["UPLOAD_DIR"], p.path))
+    cid = _case(app_on, did)
+    fake = FakeGemini(reply="x")
+    app_on.extensions["gemini_client"] = fake
+    with app_on.app_context():
+        c = ai.process_case(cid)
+        assert c.status == "skip" and fake.count("generate") == 0
+        assert ai.process_pending_cases() == 0  # ไม่ถูกลองซ้ำ
+        assert ai.case_stats()["skip"] == 1
+
+
+def test_process_case_empty_summary_is_error(app_on):
+    insb, conb, _ = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    cid = _case(app_on, did)
+    app_on.extensions["gemini_client"] = FakeGemini(reply="   ")
+    with app_on.app_context():
+        assert ai.process_case(cid).status == "error"
+
+
+def test_retrieve_skips_wrong_dimension(app_on):
+    insb, conb, _ = users(app_on)
+    target = new_defect(app_on, insb, conb)
+    other = new_defect(app_on, insb, conb, submit=False)
+    other2 = new_defect(app_on, insb, conb, submit=False)
+    with app_on.app_context():
+        db.session.add_all([_done_case(other, 1, [1.0, 0.0, 0.0]), _done_case(other2, 1, unit(0))])
+        db.session.commit()
+        app_on.extensions["gemini_client"] = FakeGemini(embed_fn=lambda t: unit(0))
+        got = ai.retrieve(db.session.get(Defect, target))
+        assert [c.defect_id for c, _ in got] == [other2]
+
+
+def test_retrieve_caches_vectors(app_on, monkeypatch):
+    insb, conb, _ = users(app_on)
+    target = new_defect(app_on, insb, conb)
+    other = new_defect(app_on, insb, conb)
+    with app_on.app_context():
+        db.session.add(_done_case(other, 1, unit(0)))
+        db.session.commit()
+        app_on.extensions["gemini_client"] = FakeGemini(embed_fn=lambda t: unit(0))
+        d = db.session.get(Defect, target)
+        ai.retrieve(d)
+        parsed = []
+        real = ai._parse_vec
+        monkeypatch.setattr(ai, "_parse_vec", lambda s: parsed.append(1) or real(s))
+        assert ai.retrieve(d)[0][1] == pytest.approx(1.0)
+        assert parsed == []  # ครั้งที่สองใช้ cache
+        # ประมวลผลเคสใหม่ -> cache ต้องอัปเดตตาม
+        app_on.extensions["gemini_client"] = FakeGemini(reply="x", embed_fn=lambda t: unit(1))
+        c = AICase.query.filter_by(defect_id=other).one()
+        c.status = "pending"
+        db.session.commit()
+        ai.process_case(c.id)
+        app_on.extensions["gemini_client"] = FakeGemini(embed_fn=lambda t: unit(0))
+        assert ai.retrieve(d)[0][1] == pytest.approx(0.0)
+
+
+def test_backfill_survives_concurrent_insert(app_on, monkeypatch):
+    insb, conb, _ = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    app_on.config["AI_ENABLED"] = False
+    review(insb, did, "approve", "ผ่าน")
+    app_on.config["AI_ENABLED"] = True
+    _case(app_on, did, rnd=1, verdict="approved")
+    monkeypatch.setattr(ai, "_existing_keys", lambda: set())  # จำลองว่าอ่านก่อนอีกเธรดเพิ่มแถว
+    with app_on.app_context():
+        assert ai.backfill_cases() == 0
+        assert AICase.query.filter_by(defect_id=did).count() == 1
+
+
+def test_ai_check_ajax_returns_card(app_on):
+    insb, conb, _ = users(app_on)
+    did = new_defect(app_on, insb, conb)
+    app_on.extensions["gemini_client"] = FakeGemini(reply=GOOD)
+    r = insb.post(f"/defects/{did}/ai-check", headers={"X-Requested-With": "fetch"})
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200 and 'id="ai"' in body and "น่าจะยังไม่เสร็จ" in body
+    assert "<html" not in body.lower()
+    assert "data-ai-check" in insb.get(f"/defects/{did}").get_data(as_text=True)

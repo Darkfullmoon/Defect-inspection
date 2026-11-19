@@ -92,6 +92,9 @@ def create_app(config=None):
         _wait_for_db(app)
         db.create_all()
         _seed(app)
+        if app.config["AI_ENABLED"]:
+            from .ai import reset_stuck_cases
+            reset_stuck_cases()
 
     if app.config["RUN_SCHEDULER"]:
         from .jobs import start_scheduler

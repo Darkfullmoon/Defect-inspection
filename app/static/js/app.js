@@ -218,6 +218,23 @@
       f.addEventListener("submit", (e) => { if (!confirm(f.dataset.confirm)) e.preventDefault(); }));
     document.querySelectorAll("[data-autosubmit]").forEach((el) =>
       el.addEventListener("change", () => el.form.submit()));
+    // ปุ่ม "ให้ AI ตรวจรูป": ส่งผ่าน fetch แล้วแทนที่เฉพาะการ์ด (ไม่มี JS ก็ยังส่งฟอร์มปกติได้)
+    document.addEventListener("submit", async (e) => {
+      const f = e.target.closest("form[data-ai-check]");
+      if (!f) return;
+      e.preventDefault();
+      const b = f.querySelector("[type=submit]");
+      if (b) { b.disabled = true; b.textContent = f.dataset.busyText; }
+      try {
+        const r = await fetch(f.action, { method: "POST", body: new FormData(f), headers: { "X-Requested-With": "fetch" } });
+        if (!r.ok) throw new Error(r.status);
+        const card = document.getElementById("ai");
+        card.outerHTML = await r.text();
+        const fresh = document.getElementById("ai");
+        if (fresh) fresh.classList.add("in"); // การ์ดใหม่ไม่ผ่าน reveal() ตอนโหลดหน้า
+        DM.icons();
+      } catch (err) { window.location.reload(); }
+    });
     document.querySelectorAll("form[data-busy]").forEach((f) => f.addEventListener("submit", () => {
       const b = f.querySelector("[type=submit]"); if (b) { b.disabled = true; b.textContent = f.dataset.busy; }
     }));

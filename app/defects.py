@@ -282,6 +282,8 @@ def ai_check(defect_id):
         abort(403)
     from . import ai
     chk = ai.check(d, g.user)
+    if request.headers.get("X-Requested-With") == "fetch":  # ปุ่มกดผ่าน JS: คืนเฉพาะการ์ด
+        return render_template("defects/_ai_card.html", d=d, manage=True)
     if chk.status == "error":
         flash(f"AI ตรวจไม่สำเร็จ: {chk.error}", "error")
     return redirect(url_for("defects.detail", defect_id=d.id) + "#ai")
