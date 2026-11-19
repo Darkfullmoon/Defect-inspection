@@ -104,7 +104,9 @@ def change_password():
         current = request.form.get("current") or ""
         new = request.form.get("new") or ""
         confirm = request.form.get("confirm") or ""
-        if not check_password_hash(u.password_hash, current):
+        # ตั้งรหัสครั้งแรก / หลังรีเซ็ต: เพิ่งล็อกอินด้วยรหัสกลางมา ไม่ต้องกรอกซ้ำ
+        # เปลี่ยนรหัสเองจากโปรไฟล์: ยังต้องกรอกรหัสปัจจุบัน กันคนอื่นมาเปลี่ยนตอนลืมล็อกเอาต์
+        if not u.must_change_password and not check_password_hash(u.password_hash, current):
             errors.append("รหัสผ่านปัจจุบันไม่ถูกต้อง")
         if new != confirm:
             errors.append("รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน")
