@@ -78,12 +78,12 @@ GEMINI_EMBED_MODEL=gemini-embedding-001
 ### จุดเชื่อมกับระบบเดิม
 - **`defects.review`** — หลัง commit การรับ/ตีกลับ ถ้า AI_ENABLED ให้สร้าง `ai_cases` แถว pending แล้วประมวลผลใน background thread (ภายใต้ app context) เพื่อไม่ให้ผู้ตรวจรอ; ล้มเหลว = status error รอทำซ้ำ
 - **Scheduler เดิม (`jobs.py`)** — เพิ่มงานเก็บกวาด: ประมวลผล `ai_cases` ที่ pending/error ค้าง (จำกัดจำนวนต่อรอบ)
-- **route ใหม่ `POST /defects/<id>/ai-check`** — สิทธิ์: ผู้ตรวจของงาน, admin, ผู้รับผิดชอบของงาน; เฉพาะ status `submitted`; ทำแบบ synchronous (ใช้เวลา ~5–20 วินาที) หน้าเว็บกดผ่าน fetch แสดง spinner แล้ว reload ส่วนผล; กดซ้ำได้ แสดงผลล่าสุดของรอบนั้น
+- **route ใหม่ `POST /defects/<id>/ai-check`** — สิทธิ์: **ผู้ตรวจของงาน และ admin เท่านั้น** (`can_manage(d)`); ผู้รับผิดชอบกดไม่ได้และ **ไม่เห็นผล AI** (เหตุผลการตีกลับจากผู้ตรวจยังเป็นความเห็นทางการตามเดิม — กันการโต้แย้งและผู้รับผิดชอบแก้อะไรไม่ได้ระหว่างรอตรวจอยู่แล้ว); เฉพาะ status `submitted`; ทำแบบ synchronous (ใช้เวลา ~5–20 วินาที) หน้าเว็บกดผ่าน fetch แสดง spinner แล้ว reload ส่วนผล; กดซ้ำได้ แสดงผลล่าสุดของรอบนั้น
 - **DefectLog** — เพิ่ม action `ai_check` ("ให้ AI ตรวจรูป") ใน `LOG_ACTIONS`
 - **Admin** — ปุ่ม "สร้างคลังเคส AI ย้อนหลัง": ไล่ DefectLog `approved`/`rejected` ทั้งหมด จับคู่กับรอบ (นับจำนวน `submitted` ก่อนหน้า log นั้น = เลขรอบ) สร้าง `ai_cases` pending แล้วให้ background/scheduler ประมวลผล แสดงจำนวน done/pending/error
 
 ### หน้าจอ (`defects/detail.html`)
-การ์ดใต้ส่วนรูปหลังแก้ แสดงเฉพาะเมื่อ AI_ENABLED:
+การ์ดใต้ส่วนรูปหลังแก้ แสดงเฉพาะเมื่อ AI_ENABLED **และผู้ดูเป็นผู้ตรวจของงานหรือ admin** (`manage`):
 ```
 ┌ ความเห็น AI (ใช้ประกอบ — ผู้ตรวจเป็นผู้ตัดสิน) ─────────┐
 │ ⚠ น่าจะยังไม่เสร็จ  · ความมั่นใจ: กลาง                │
@@ -103,7 +103,7 @@ GEMINI_EMBED_MODEL=gemini-embedding-001
 - mock Gemini client (ไม่เรียกจริงใน test)
 - ไม่มี key → ไม่เห็นปุ่ม, review ทำงานเหมือนเดิม, ไม่สร้าง ai_cases
 - มี key → review สร้าง ai_cases; ai-check บันทึกผล; Gemini error → status error ไม่ 500
-- สิทธิ์: ผู้ใช้ที่ไม่เกี่ยวข้องกด ai-check ได้ 403; สถานะไม่ใช่ submitted ได้ 403
+- สิทธิ์: ผู้รับผิดชอบ / ผู้ใช้ที่ไม่เกี่ยวข้องกด ai-check ได้ 403 และไม่เห็นการ์ด AI; สถานะไม่ใช่ submitted ได้ 403
 - retrieve ตัดเคสของ Defect เดียวกันออก และเรียงตามความคล้าย
 - การจับคู่รอบในการสร้างคลังย้อนหลัง
 
